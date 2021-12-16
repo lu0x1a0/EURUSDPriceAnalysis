@@ -73,7 +73,6 @@ class PGFigureLayoutWrap(QVBoxLayout):
         self.addWidget(self.slidersmall)
         self.addWidget(self.sliderbig)
 
-        ...
         self.plot() 
     def plot(self):
         self.plotlines = {}
@@ -118,8 +117,30 @@ class MainWindow(QMainWindow):
         self.DATAPOINTS = 500
 
         #self.data = self.getOHLC_raw(to_pickle=True)
-        self.data = self.getOHLC_pickle("EURUSD_M_2010_2021.pkl")
-        self.data = self.data[['Open','Close']]
+        minutes = self.getOHLC_pickle("EURUSD_M_2010_2021.pkl")
+        
+        #self.data = self.data[['Open','Close']]
+        
+        hourly = data.resample('1H').agg({'Open': 'first', 
+                        'High': 'max', 
+                        'Low': 'min', 
+                        'Close': 'last'}).dropna()
+        print("COPY TIME:", time()-t)
+        emaperiods = [100,200,300,24*100,24*200]
+        dataHset = DemaMinDayMultinom(hourly,emaperiods = emaperiods)
+        from DataManipulation.indicators import NStepForwardPredictByD12
+        self.data = [
+            {'name':'Close'     ,'data':hourly['Close'],   'indtype':'series', 'panel':0           },
+            {'name':'ema100'    ,'data':hourly['ema100'],  'indtype':'series', 'panel':0           },
+            {'name':'ema200'    ,'data':hourly['ema200'],  'indtype':'series', 'panel':0           },
+            {'name':'ema300'    ,'data':hourly['ema300'],  'indtype':'series', 'panel':0           },
+            {'name':'ema2400'   ,'data':hourly['ema2400'], 'indtype':'series', 'panel':0           },
+            {'name':'ema4800'   ,'data':hourly['ema4800'], 'indtype':'series', 'panel':0           },
+            {'name':'5StepEMA2400','data':NStepForwardPredictByD12(5).look(hourly['ema2400'].to_numpy()), 'indtype':'predictforward','panel':0   },
+            {'name':'5StepEMA4800','data':NStepForwardPredictByD12(5).look(hourly['ema4800'].to_numpy()), 'indtype':'predictforward','panel':0   },
+
+        ]
+
         self.minorDP = int(len(self.data)/100)
         self.totalDP = len(self.data)
 

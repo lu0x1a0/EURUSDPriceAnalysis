@@ -25,3 +25,24 @@ def D2(TS):
         D2[:2] = np.nan
         D2[2:] = TS[2:]-2*TS[1:-1]+TS[:-2]
     return D2
+
+from abc import ABC
+class ForwardPredictIndicator(ABC):
+    def __init__(self):
+        pass
+
+class NStepForwardPredictByD12(ForwardPredictIndicator):
+    """[summary]
+    Usage: NStepForwardPredictByD12(Nsteps:int).look(trendtopredict,trend's D1, trend's D2)
+    """
+    def __init__(self,Nsteps):
+        self.Nsteps = Nsteps
+    def look(self,TS,d1=None,d2=None):
+        if d1 == None:
+            d1 = D1(TS)
+        if d2 == None:
+            d2 = D2(TS)
+        store = np.zeros(shape=(len(TS),self.Nsteps))
+        for step in range(1,self.Nsteps+1):
+            store[:,step-1] = step**2*D2/2 + step*D1 + TS
+        return store
