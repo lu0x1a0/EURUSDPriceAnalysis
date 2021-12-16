@@ -44,5 +44,5 @@ class NStepForwardPredictByD12(ForwardPredictIndicator):
             d2 = D2(TS)
         store = np.zeros(shape=(len(TS),self.Nsteps))
         for step in range(1,self.Nsteps+1):
-            store[:,step-1] = step**2*D2/2 + step*D1 + TS
+            store[:,step-1] = step**2*d2/2 + step*d1 + TS
         return store

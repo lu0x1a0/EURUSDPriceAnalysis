@@ -15,51 +15,106 @@ import pyqtgraph as pg
 
 import numpy as np
 import pandas as pd
-class LinePlotWrap():
-   pass
+
+from abc import ABC, abstractmethod
+class IndicatorPlot(ABC):
+    def __init__(self,name,data,hostplotwidget):
+        self.name = name
+        self.data = data
+        self.hostplotwidget = hostplotwidget
+        self.plot = None
+    def getSerialColor(self):
+        colors = ('b', 'g', 'r', 'c', 'm', 'y')#, 'k', 'w')
+        NOPlotSharingWith = len(self.hostplotwidget.getPlotItem().dataItems)
+        return colors[NOPlotSharingWith%len(colors)]
+    def datalen(self):
+        return len(self.data)
+    @abstractmethod
+    def createLine(self,startidx,endidx,color = None):
+        pass
+    @abstractmethod
+    def updateData(self,startidx,endidx):
+        pass
+class SeriesPlot(IndicatorPlot):
+    def __init__(self,name, data,hostplotwidget):
+        super().__init__(name,data,hostplotwidget)
+    def createLine(self,startidx,endidx,color = None):
+        if color is None:
+            self.color = 'g'
+        else:
+            self.color = color
+        pen = pg.mkPen(color) # sets the color
+        self.plot = self.hostplotwidget.plot(self.data[startidx:endidx],pen = pen,name=self.name)
+    def updateData(self,startidx,endidx):
+        self.plot.setData(self.data[startidx:endidx])
+class PredictForwardPlot(IndicatorPlot):
+    def __init__(self,name,data,hostplotwidget):
+        super().__init__(name,data,hostplotwidget)
+        self.startpointratio = 4/5
+    def createLine(self,startidx,endidx,color = None):
+        if color is None:
+            self.color = 'g'
+        else:
+            self.color = color
+        pen = pg.mkPen(color) # sets the color
+        self.startpoint = int(self.startpointratio*(endidx-startidx)) + startidx
+        self.plot = self.hostplotwidget.plot(
+            list(range(self.startpoint+1-startidx,self.startpoint+1-startidx+len(self.data[self.startpoint,:]))),
+            self.data[self.startpoint,:],
+            pen = pen,
+            name=self.name
+        )
+    def updateData(self,startidx,endidx):
+        self.startpoint = int(self.startpointratio*(endidx-startidx)) + startidx
+        self.plot.setData(
+            list(range(self.startpoint+1-startidx,self.startpoint+1-startidx+len(self.data[self.startpoint,:]))),
+            self.data[self.startpoint,:]
+        )
+
 class PGFigureLayoutWrap(QVBoxLayout):
     def __init__(self,SeriesList):
         super().__init__()
-        self.lineDict = {}
-        self.panels = 1
-
-        if   isinstance(SeriesList,pd.DataFrame):
-            self.colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k', 'w')
-            for i in range(len(SeriesList.columns)):
-                if SeriesList[SeriesList.columns[i]].to_numpy().dtype != 'int8':
-                    self.lineDict[SeriesList.columns[i]] = (
-                        SeriesList[SeriesList.columns[i]],
-                        self.colors[i%len(self.colors)],
-                        0
-                    )
-                else :
-                    self.lineDict[SeriesList.columns[i]] = (
-                        SeriesList[SeriesList.columns[i]],
-                        self.colors[i%len(self.colors)],
-                        self.panels
-                    )
-                    self.panels += 1
-
+        
+        self.indicators = []
+        #    self.colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k', 'w')
+        
+        self.plotpanels = []
+        if isinstance(SeriesList,pd.DataFrame):
+            ... 
         elif isinstance(SeriesList,list) and len(SeriesList)>0:
             if isinstance(SeriesList[0],pd.Series):
                 ...
             elif isinstance(SeriesList[0],np.ndarray):
                 ...
             elif isinstance(SeriesList[0],dict):
-                ...
+                for i in range(SeriesList[-1]['panelidx']+1):
+                    self.plotpanels.append(pg.PlotWidget())
+                    self.addWidget(self.plotpanels[i])
+                for s in SeriesList:
+                    if s['indtype'] == 'series':
+                        self.indicators.append(
+                            SeriesPlot(
+                                s['name'],
+                                s['data'],
+                                self.plotpanels[s['panelidx']]
+                            )
+                        )
+                    elif s['indtype'] == 'predictforward':
+                        self.indicators.append(
+                            PredictForwardPlot(
+                                s['name'],
+                                s['data'],
+                                self.plotpanels[s['panelidx']]
+                            )
+                        )
             else:
                 pass
         else:
             ...
         
-        self.plotpanels = []
-        for x in range(self.panels):
-            self.plotpanels.append(pg.PlotWidget())
-            self.addWidget(self.plotpanels[x])
-        
-        self.DATAPOINTS = 500
-        self.minorDP = 2000
-        self.totalDP = len(self.lineDict[list(self.lineDict.keys())[0]][0]) # assumes all in SeriesList are equal length
+        self.DATAPOINTS = 1000
+        self.minorDP = 5000
+        self.totalDP = self.indicators[0].datalen()
         self.viewStartIdx = 0
         self.viewEndIdx = self.DATAPOINTS
         
@@ -76,27 +131,29 @@ class PGFigureLayoutWrap(QVBoxLayout):
         self.plot() 
     def plot(self):
         self.plotlines = {}
-        for key in self.lineDict:
-            pen = pg.mkPen(self.lineDict[key][1]) # sets the color
+        for indicator in self.indicators:
+            indicator.createLine(self.viewStartIdx,self.viewEndIdx,indicator.getSerialColor())
+            #pen = pg.mkPen(self.lineDict[key][1]) # sets the color
             #print(self.lineDict[key])
-            self.plotlines[key] = self.plotpanels[self.lineDict[key][2]].plot(self.lineDict[key][0][0:self.DATAPOINTS],pen = pen,name=key)
-            
-    def updatePlotData(self):   
-        for key in self.lineDict:
-            #print("-------------------------------------------")
-            #print(type(self.plots[self.lineDict[key][2]]))
-            pen = pg.mkPen(self.lineDict[key][1]) # sets the color
-            self.plotlines[key].setData(
-                self.lineDict[key][0][self.viewStartIdx:self.viewEndIdx],
-                name = key
-            )
-            #print(type(self.plots[self.lineDict[key][2]]))
+            #self.plotlines[key] = self.plotpanels[self.lineDict[key][2]].plot(self.lineDict[key][0][0:self.DATAPOINTS],pen = pen,name=key)
+        
+    def updatePlotData(self): 
+        for indicator in self.indicators:
+            indicator.updateData(self.viewStartIdx,self.viewEndIdx)
+        #for key in self.lineDict:
+        #    #print("-------------------------------------------")
+        #    #print(type(self.plots[self.lineDict[key][2]]))
+        #    pen = pg.mkPen(self.lineDict[key][1]) # sets the color
+        #    self.plotlines[key].setData(
+        #        self.lineDict[key][0][self.viewStartIdx:self.viewEndIdx],
+        #        name = key
+        #    )
+        #    #print(type(self.plots[self.lineDict[key][2]]))
     def sliderSmove(self,e):
         self.viewStartIdx = self.sliderbig.value() + e
         self.viewEndIdx   = self.viewStartIdx + self.DATAPOINTS
         self.updatePlotData()
     def sliderBmove(self,e):
-        print("Called")
         self.viewStartIdx = self.slidersmall.value() + e
         self.viewEndIdx   = self.viewStartIdx + self.DATAPOINTS
         self.updatePlotData()
@@ -116,33 +173,30 @@ class MainWindow(QMainWindow):
         
         self.DATAPOINTS = 500
 
-        #self.data = self.getOHLC_raw(to_pickle=True)
         minutes = self.getOHLC_pickle("EURUSD_M_2010_2021.pkl")
         
-        #self.data = self.data[['Open','Close']]
-        
-        hourly = data.resample('1H').agg({'Open': 'first', 
+        hourly = minutes.resample('1H').agg({'Open': 'first', 
                         'High': 'max', 
                         'Low': 'min', 
                         'Close': 'last'}).dropna()
-        print("COPY TIME:", time()-t)
         emaperiods = [100,200,300,24*100,24*200]
+        from DataManipulation.DataHandler import DemaMinDayMultinom
         dataHset = DemaMinDayMultinom(hourly,emaperiods = emaperiods)
         from DataManipulation.indicators import NStepForwardPredictByD12
         self.data = [
-            {'name':'Close'     ,'data':hourly['Close'],   'indtype':'series', 'panel':0           },
-            {'name':'ema100'    ,'data':hourly['ema100'],  'indtype':'series', 'panel':0           },
-            {'name':'ema200'    ,'data':hourly['ema200'],  'indtype':'series', 'panel':0           },
-            {'name':'ema300'    ,'data':hourly['ema300'],  'indtype':'series', 'panel':0           },
-            {'name':'ema2400'   ,'data':hourly['ema2400'], 'indtype':'series', 'panel':0           },
-            {'name':'ema4800'   ,'data':hourly['ema4800'], 'indtype':'series', 'panel':0           },
-            {'name':'5StepEMA2400','data':NStepForwardPredictByD12(5).look(hourly['ema2400'].to_numpy()), 'indtype':'predictforward','panel':0   },
-            {'name':'5StepEMA4800','data':NStepForwardPredictByD12(5).look(hourly['ema4800'].to_numpy()), 'indtype':'predictforward','panel':0   },
+            {'name':'Close'     ,'data':hourly['Close'],   'indtype':'series', 'panelidx':0           },
+            {'name':'ema100'    ,'data':hourly['ema100'],  'indtype':'series', 'panelidx':0           },
+            {'name':'ema200'    ,'data':hourly['ema200'],  'indtype':'series', 'panelidx':0           },
+            {'name':'ema300'    ,'data':hourly['ema300'],  'indtype':'series', 'panelidx':0           },
+            {'name':'ema2400'   ,'data':hourly['ema2400'], 'indtype':'series', 'panelidx':0           },
+            {'name':'ema4800'   ,'data':hourly['ema4800'], 'indtype':'series', 'panelidx':0           },
+            {'name':'5StepEMA2400','data':NStepForwardPredictByD12(24*5).look(hourly['ema2400'].to_numpy()), 'indtype':'predictforward','panelidx':0   },
+            {'name':'5StepEMA4800','data':NStepForwardPredictByD12(24*5).look(hourly['ema4800'].to_numpy()), 'indtype':'predictforward','panelidx':0   },
 
         ]
 
-        self.minorDP = int(len(self.data)/100)
-        self.totalDP = len(self.data)
+        self.minorDP = int(len(self.data[0]['data'])/100)
+        self.totalDP = len(self.data[0]['data'])
 
 
         self.rightmain = PGFigureLayoutWrap(self.data)
