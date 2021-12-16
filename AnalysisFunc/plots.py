@@ -15,7 +15,7 @@ def plotsubset(df,indnames, filename,extraserieses = []):
         ] + [
             mpf.make_addplot(df[indnames[-2]]-df[indnames[-1]]>0,panel=2,color='b'),
         ] + [
-            mpf.make_addplot(s,panel=3) for s in extraserieses
+            mpf.make_addplot(s,panel=3+i) for i,s in enumerate(extraserieses)
         ]
 
     # fig, axes = mpf.plot(df,addplot=apds,figscale=14,volume=False, returnfig=True)

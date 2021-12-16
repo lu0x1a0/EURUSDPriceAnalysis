@@ -6,6 +6,7 @@ import torch, numba
 from time import time
 
 from talib import MACD, DEMA,EMA
+from .indicators import D1,D2
 # will use my own implementation of EMA
 # it differs from talib slightly at the beginning then is the same,
 # using self write, because talib cant handle extremely large period like 20 days on minute interval,
@@ -278,8 +279,10 @@ class DemaMinDayMultinom(OHLCTrainFactory):
         t = time()
         for i in self.indicators:
             self.raw[i.__name__] = i(self.raw[self.datacol])
-            self.raw[i.__name__+'D1'] = self.raw[i.__name__].rolling(2).apply(lambda x:x[1]-x[0],raw=True,engine='numba')
-            self.raw[i.__name__+'D2'] = self.raw[i.__name__].rolling(3).apply(lambda x:x[2]-2*x[1]+x[0],raw=True,engine='numba')
+            self.raw[i.__name__+'D1'] = D1(self.raw[i.__name__])
+            self.raw[i.__name__+'D2'] = D2(self.raw[i.__name__])
+            #self.raw[i.__name__+'D1'] = self.raw[i.__name__].rolling(2).apply(lambda x:x[1]-x[0],raw=True,engine='numba')
+            #self.raw[i.__name__+'D2'] = self.raw[i.__name__].rolling(3).apply(lambda x:x[2]-2*x[1]+x[0],raw=True,engine='numba')
         self.colnameindex = {y:x for x,y in enumerate(self.raw.columns)}
         self.D1index = [x for x in self.colnameindex if x[-2:]=='D1']
         self.D2index = [x for x in self.colnameindex if x[-2:]=='D2']

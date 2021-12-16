@@ -16,4 +16,5 @@
     * follow Dr chandra's code on time series prediction, change data source and see outcome.
     *  try random forest
         * before that try to manual tune an hourly strat
+        * try to predict long term suport before happening using D1 and D2 2 step taylor series 
     *  try poisson reggression
