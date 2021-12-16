@@ -17,4 +17,7 @@
     *  try random forest
         * before that try to manual tune an hourly strat
         * try to predict long term suport before happening using D1 and D2 2 step taylor series 
+            D2 for 2400 h and 4800 h (100 day and 200 day using hour) is extremely unstable. 
+                to utilize, will need to resample upwards again
+            D1 seems to offer a degree of insight. need further testing.
     *  try poisson reggression

@@ -46,3 +46,17 @@ class NStepForwardPredictByD12(ForwardPredictIndicator):
         for step in range(1,self.Nsteps+1):
             store[:,step-1] = step**2*d2/2 + step*d1 + TS
         return store
+
+class NStepForwardPredictByD1(ForwardPredictIndicator):
+    """[summary]
+    Usage: NStepForwardPredictByD12(Nsteps:int).look(trendtopredict,trend's D1, trend's D2)
+    """
+    def __init__(self,Nsteps):
+        self.Nsteps = Nsteps
+    def look(self,TS,d1=None):
+        if d1 == None:
+            d1 = D1(TS)
+        store = np.zeros(shape=(len(TS),self.Nsteps))
+        for step in range(1,self.Nsteps+1):
+            store[:,step-1] = step*d1 + TS
+        return store

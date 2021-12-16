@@ -112,8 +112,8 @@ class PGFigureLayoutWrap(QVBoxLayout):
         else:
             ...
         
-        self.DATAPOINTS = 1000
-        self.minorDP = 5000
+        self.DATAPOINTS = 3000
+        self.minorDP = 10000
         self.totalDP = self.indicators[0].datalen()
         self.viewStartIdx = 0
         self.viewEndIdx = self.DATAPOINTS
@@ -133,22 +133,9 @@ class PGFigureLayoutWrap(QVBoxLayout):
         self.plotlines = {}
         for indicator in self.indicators:
             indicator.createLine(self.viewStartIdx,self.viewEndIdx,indicator.getSerialColor())
-            #pen = pg.mkPen(self.lineDict[key][1]) # sets the color
-            #print(self.lineDict[key])
-            #self.plotlines[key] = self.plotpanels[self.lineDict[key][2]].plot(self.lineDict[key][0][0:self.DATAPOINTS],pen = pen,name=key)
-        
     def updatePlotData(self): 
         for indicator in self.indicators:
             indicator.updateData(self.viewStartIdx,self.viewEndIdx)
-        #for key in self.lineDict:
-        #    #print("-------------------------------------------")
-        #    #print(type(self.plots[self.lineDict[key][2]]))
-        #    pen = pg.mkPen(self.lineDict[key][1]) # sets the color
-        #    self.plotlines[key].setData(
-        #        self.lineDict[key][0][self.viewStartIdx:self.viewEndIdx],
-        #        name = key
-        #    )
-        #    #print(type(self.plots[self.lineDict[key][2]]))
     def sliderSmove(self,e):
         self.viewStartIdx = self.sliderbig.value() + e
         self.viewEndIdx   = self.viewStartIdx + self.DATAPOINTS
@@ -170,8 +157,6 @@ class MainWindow(QMainWindow):
         
         # right Content
         self.rightmain = QVBoxLayout()
-        
-        self.DATAPOINTS = 500
 
         minutes = self.getOHLC_pickle("EURUSD_M_2010_2021.pkl")
         
@@ -182,7 +167,7 @@ class MainWindow(QMainWindow):
         emaperiods = [100,200,300,24*100,24*200]
         from DataManipulation.DataHandler import DemaMinDayMultinom
         dataHset = DemaMinDayMultinom(hourly,emaperiods = emaperiods)
-        from DataManipulation.indicators import NStepForwardPredictByD12
+        from DataManipulation.indicators import NStepForwardPredictByD1
         self.data = [
             {'name':'Close'     ,'data':hourly['Close'],   'indtype':'series', 'panelidx':0           },
             {'name':'ema100'    ,'data':hourly['ema100'],  'indtype':'series', 'panelidx':0           },
@@ -190,14 +175,10 @@ class MainWindow(QMainWindow):
             {'name':'ema300'    ,'data':hourly['ema300'],  'indtype':'series', 'panelidx':0           },
             {'name':'ema2400'   ,'data':hourly['ema2400'], 'indtype':'series', 'panelidx':0           },
             {'name':'ema4800'   ,'data':hourly['ema4800'], 'indtype':'series', 'panelidx':0           },
-            {'name':'5StepEMA2400','data':NStepForwardPredictByD12(24*5).look(hourly['ema2400'].to_numpy()), 'indtype':'predictforward','panelidx':0   },
-            {'name':'5StepEMA4800','data':NStepForwardPredictByD12(24*5).look(hourly['ema4800'].to_numpy()), 'indtype':'predictforward','panelidx':0   },
+            {'name':'5StepEMA2400','data':NStepForwardPredictByD1(24*5).look(hourly['ema2400'].to_numpy()), 'indtype':'predictforward','panelidx':0   },
+            {'name':'5StepEMA4800','data':NStepForwardPredictByD1(24*5).look(hourly['ema4800'].to_numpy()), 'indtype':'predictforward','panelidx':0   },
 
         ]
-
-        self.minorDP = int(len(self.data[0]['data'])/100)
-        self.totalDP = len(self.data[0]['data'])
-
 
         self.rightmain = PGFigureLayoutWrap(self.data)
 
@@ -208,8 +189,6 @@ class MainWindow(QMainWindow):
         widget.setLayout(self.layout)
         self.setCentralWidget(widget)
 
-    def plotdata(self):
-        self.singleline = self.plotwindow.plot(self.data['Close'].iloc[:self.DATAPOINTS])
     def getOHLC_pickle(self,pklpath):
         import pickle
         with open(pklpath,'rb') as f:
