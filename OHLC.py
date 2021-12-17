@@ -19,11 +19,13 @@ import pandas as pd
 
 from abc import ABC, abstractmethod
 class IndicatorPlot(ABC):
-    def __init__(self,name,data,hostplotwidget):
+    def __init__(self,name,data,hostplotwidget,color = None):
         self.name = name
         self.data = data
         self.hostplotwidget = hostplotwidget
         self.plot = None
+        if color is not None:
+            self.color = color
     def getSerialColor(self):
         colors = ('b', 'g', 'r', 'c', 'm', 'y')#, 'k', 'w')
         NOPlotSharingWith = len(self.hostplotwidget.getPlotItem().dataItems)
@@ -37,14 +39,15 @@ class IndicatorPlot(ABC):
     def updateData(self,startidx,endidx):
         pass
 class SeriesPlot(IndicatorPlot):
-    def __init__(self,name, data,hostplotwidget):
-        super().__init__(name,data,hostplotwidget)
+    def __init__(self,name, data,hostplotwidget,color =None):
+        super().__init__(name,data,hostplotwidget,color)
     def createLine(self,startidx,endidx,color = None):
         if color is None:
-            self.color = 'g'
+            if hasattr(self,'color') == False:
+                self.color = self.getSerialColor()
         else:
             self.color = color
-        pen = pg.mkPen(color) # sets the color
+        pen = pg.mkPen(self.color) # sets the color
         self.plot = self.hostplotwidget.plot(self.data[startidx:endidx],pen = pen,name=self.name)
         self.hostplotwidget.plotItem.vb.disableAutoRange()
         self.hostplotwidget.plotItem.setMouseEnabled(x=False, y=True)
@@ -52,15 +55,16 @@ class SeriesPlot(IndicatorPlot):
         self.plot.setData(self.data[startidx:endidx])
         
 class PredictForwardPlot(IndicatorPlot):
-    def __init__(self,name,data,hostplotwidget):
-        super().__init__(name,data,hostplotwidget)
+    def __init__(self,name,data,hostplotwidget,color =None):
+        super().__init__(name,data,hostplotwidget,color)
         self.startpointratio = 4/5
     def createLine(self,startidx,endidx,color = None):
         if color is None:
-            self.color = 'g'
+            if hasattr(self,'color') == False:
+                self.color = self.getSerialColor()
         else:
             self.color = color
-        pen = pg.mkPen(color) # sets the color
+        pen = pg.mkPen(self.color) # sets the color
         self.startpoint = int(self.startpointratio*(endidx-startidx)) + startidx
         self.plot = self.hostplotwidget.plot(
             list(range(self.startpoint+1-startidx,self.startpoint+1-startidx+len(self.data[self.startpoint,:]))),
@@ -100,7 +104,8 @@ class PGFigureLayoutWrap(QVBoxLayout):
                             SeriesPlot(
                                 s['name'],
                                 s['data'],
-                                self.plotpanels[s['panelidx']]
+                                self.plotpanels[s['panelidx']],
+                                color = s['color'] if 'color' in s else None
                             )
                         )
                     elif s['indtype'] == 'predictforward':
@@ -108,7 +113,8 @@ class PGFigureLayoutWrap(QVBoxLayout):
                             PredictForwardPlot(
                                 s['name'],
                                 s['data'],
-                                self.plotpanels[s['panelidx']]
+                                self.plotpanels[s['panelidx']],
+                                color = s['color'] if 'color' in s else None
                             )
                         )
             else:
@@ -146,7 +152,7 @@ class PGFigureLayoutWrap(QVBoxLayout):
     def plot(self):
         self.plotlines = {}
         for indicator in self.indicators:
-            indicator.createLine(self.viewStartIdx,self.viewEndIdx,indicator.getSerialColor())
+            indicator.createLine(self.viewStartIdx,self.viewEndIdx)
     def updatePlotData(self): 
         for indicator in self.indicators:
             indicator.updateData(self.viewStartIdx,self.viewEndIdx)
@@ -172,33 +178,8 @@ class MainWindow(QMainWindow):
         # right Content
         self.rightmain = QVBoxLayout()
 
-        minutes = self.getOHLC_pickle("EURUSD_M_2010_2021.pkl")
-        
-        hourly = minutes.resample('1H').agg({'Open': 'first', 
-                        'High': 'max', 
-                        'Low': 'min', 
-                        'Close': 'last'}).dropna()
-        emaperiods = [100,200,300,24*100,24*200]
-        from DataManipulation.DataHandler import DemaMinDayMultinom
-        dataHset = DemaMinDayMultinom(hourly,emaperiods = emaperiods)
-        from DataManipulation.indicators import NStepForwardPredictByD1,D1Crossing
-        self.data = [
-            {'name':'Close'     ,'data':hourly['Close'],   'indtype':'series', 'panelidx':0           },
-            {'name':'ema100'    ,'data':hourly['ema100'],  'indtype':'series', 'panelidx':0           },
-            {'name':'ema200'    ,'data':hourly['ema200'],  'indtype':'series', 'panelidx':0           },
-            {'name':'ema300'    ,'data':hourly['ema300'],  'indtype':'series', 'panelidx':0           },
-            {'name':'ema2400'   ,'data':hourly['ema2400'], 'indtype':'series', 'panelidx':0           },
-            {'name':'ema4800'   ,'data':hourly['ema4800'], 'indtype':'series', 'panelidx':0           },
-            {'name':'5StepEMA2400','data':NStepForwardPredictByD1(24*5).look(hourly['ema2400'].to_numpy()), 'indtype':'predictforward','panelidx':0   },
-            {'name':'5StepEMA4800','data':NStepForwardPredictByD1(24*5).look(hourly['ema4800'].to_numpy()), 'indtype':'predictforward','panelidx':0   },
-            {'name':'24_48crossing','data':D1Crossing(hourly['ema2400'].to_numpy(), hourly['ema4800'].to_numpy(),n=24*5).astype('int8'), 'indtype':'series','panelidx':1   },
-            {'name':'4800Var4800','data':hourly['ema4800'].rolling(4800).var(),'indtype':'series','panelidx':2},
-            {'name':'2400Var2400','data':hourly['ema2400'].rolling(2400).var(),'indtype':'series','panelidx':2},
-            {'name':'300Var300','data':hourly['ema300'].rolling(300).std(),'indtype':'series','panelidx':2},
-            {'name':'100Var100','data':hourly['ema100'].rolling(100).var(),'indtype':'series','panelidx':2},
-            #{'name':'300D1DEV','data':hourly['ema300']-hourly['ema300'].rolling(300).mean(),'indtype':'series','panelidx':3}, Unstable
-        ]
-        
+        #self.data = self.prepareHourly()        
+        self.data = self.prepareMinutes()        
 
         self.rightmain = PGFigureLayoutWrap(self.data)
 
@@ -208,7 +189,65 @@ class MainWindow(QMainWindow):
         widget = QWidget()
         widget.setLayout(self.layout)
         self.setCentralWidget(widget)
-
+    def prepareHourly(self,):
+        minutes = self.getOHLC_pickle("EURUSD_M_2010_2021.pkl")
+        
+        hourly = minutes.resample('1H').agg({'Open': 'first', 
+                        'High': 'max', 
+                        'Low': 'min', 
+                        'Close': 'last'}).dropna()
+        emaperiods = [100,200,300,24*100,24*200]
+        from DataManipulation.DataHandler import DemaMinDayMultinom
+        dataHset = DemaMinDayMultinom(hourly,emaperiods = emaperiods)
+        from DataManipulation.indicators import NStepForwardPredictByD1,D1Crossing, D1,D2
+        data = [
+            {'name':'Close'     ,'data':hourly['Close'],   'indtype':'series', 'panelidx':0,'color':'b'           },
+            {'name':'ema100'    ,'data':hourly['ema100'],  'indtype':'series', 'panelidx':0,'color':'r'           },
+            {'name':'ema200'    ,'data':hourly['ema200'],  'indtype':'series', 'panelidx':0,'color':'g'           },
+            {'name':'ema300'    ,'data':hourly['ema300'],  'indtype':'series', 'panelidx':0,'color':'y'           },
+            {'name':'ema2400'   ,'data':hourly['ema2400'], 'indtype':'series', 'panelidx':0,'color':'c'           },
+            {'name':'ema4800'   ,'data':hourly['ema4800'], 'indtype':'series', 'panelidx':0,'color':'m'           },
+            {'name':'5StepEMA2400','data':NStepForwardPredictByD1(24*5).look(hourly['ema2400'].to_numpy()), 'indtype':'predictforward','panelidx':0,'color':'b'   },
+            {'name':'5StepEMA4800','data':NStepForwardPredictByD1(24*5).look(hourly['ema4800'].to_numpy()), 'indtype':'predictforward','panelidx':0,'color':'r'   },
+            {'name':'24_48crossing','data':D1Crossing(hourly['ema2400'].to_numpy(), hourly['ema4800'].to_numpy(),n=24*5).astype('int8'), 'indtype':'series','panelidx':1   },
+            {'name':'4800Var4800','data':hourly['ema4800'].rolling(4800).std(),'indtype':'series','panelidx':2,'color':'m'},
+            {'name':'2400Var2400','data':hourly['ema2400'].rolling(2400).std(),'indtype':'series','panelidx':2,'color':'c'},
+            {'name':'300Var300','data':hourly['ema300'].rolling(300).std()    ,'indtype':'series','panelidx':2,'color':'y'},
+            {'name':'100Var100','data':hourly['ema100'].rolling(100).std()    ,'indtype':'series','panelidx':2,'color':'r'},
+            {'name':'300Var300D1','data':D1(hourly['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':3,'color':'y'},
+            {'name':'_DIVIDER','data':np.zeros(len(hourly['ema300']))         ,'indtype':'series','panelidx':3,'color':'b'},
+            
+            {'name':'300Var300D2','data':D2(hourly['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':4,'color':'y'},
+            #{'name':'300D1DEV','data':hourly['ema300']-hourly['ema300'].rolling(300).mean(),'indtype':'series','panelidx':3}, Unstable
+        ]
+        return data
+    def prepareMinutes(self,):
+        minutes = self.getOHLC_pickle("EURUSD_M_2010_2021.pkl")
+        emaperiods = [100,200,300,24*100,24*200]
+        from DataManipulation.DataHandler import DemaMinDayMultinom
+        dataMset = DemaMinDayMultinom(minutes,emaperiods = emaperiods)
+        from DataManipulation.indicators import NStepForwardPredictByD1,D1Crossing, D1,D2
+        data = [
+            {'name':'Close'     ,'data':minutes['Close'],   'indtype':'series', 'panelidx':0,'color':'b'           },
+            {'name':'ema100'    ,'data':minutes['ema100'],  'indtype':'series', 'panelidx':0,'color':'r'           },
+            {'name':'ema200'    ,'data':minutes['ema200'],  'indtype':'series', 'panelidx':0,'color':'g'           },
+            {'name':'ema300'    ,'data':minutes['ema300'],  'indtype':'series', 'panelidx':0,'color':'y'           },
+            {'name':'ema2400'   ,'data':minutes['ema2400'], 'indtype':'series', 'panelidx':0,'color':'c'           },
+            {'name':'ema4800'   ,'data':minutes['ema4800'], 'indtype':'series', 'panelidx':0,'color':'m'           },
+            #{'name':'5StepEMA2400','data':NStepForwardPredictByD1(24*5).look(minutes['ema2400'].to_numpy()), 'indtype':'predictforward','panelidx':0,'color':'b'   },
+            #{'name':'5StepEMA4800','data':NStepForwardPredictByD1(24*5).look(minutes['ema4800'].to_numpy()), 'indtype':'predictforward','panelidx':0,'color':'r'   },
+            {'name':'24_48crossing','data':D1Crossing(minutes['ema2400'].to_numpy(), minutes['ema4800'].to_numpy(),n=24*5).astype('int8'), 'indtype':'series','panelidx':1   },
+            {'name':'4800Var4800','data':minutes['ema4800'].rolling(4800).std(),'indtype':'series','panelidx':2,'color':'m'},
+            {'name':'2400Var2400','data':minutes['ema2400'].rolling(2400).std(),'indtype':'series','panelidx':2,'color':'c'},
+            {'name':'300Var300','data':minutes['ema300'].rolling(300).std()    ,'indtype':'series','panelidx':2,'color':'y'},
+            {'name':'100Var100','data':minutes['ema100'].rolling(100).std()    ,'indtype':'series','panelidx':2,'color':'r'},
+            {'name':'300Var300D1','data':D1(minutes['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':3,'color':'y'},
+            #{'name':'_DIVIDER','data':np.zeros(len(minutes['ema300']))         ,'indtype':'series','panelidx':3,'color':'b'},
+            
+            {'name':'300Var300D2','data':D2(minutes['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':4,'color':'y'},
+            #{'name':'300D1DEV','data':minutes['ema300']-minutes['ema300'].rolling(300).mean(),'indtype':'series','panelidx':3}, Unstable
+        ]
+        return data
     def getOHLC_pickle(self,pklpath):
         import pickle
         with open(pklpath,'rb') as f:
