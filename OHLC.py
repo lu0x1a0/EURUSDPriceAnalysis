@@ -9,7 +9,8 @@ from PyQt5.QtWidgets import (
     QStackedLayout,
     QWidget,
     QCheckBox,
-    QSlider
+    QSlider,
+    QLabel,
 )
 import pyqtgraph as pg
 
@@ -45,8 +46,11 @@ class SeriesPlot(IndicatorPlot):
             self.color = color
         pen = pg.mkPen(color) # sets the color
         self.plot = self.hostplotwidget.plot(self.data[startidx:endidx],pen = pen,name=self.name)
+        self.hostplotwidget.plotItem.vb.disableAutoRange()
+        self.hostplotwidget.plotItem.setMouseEnabled(x=False, y=True)
     def updateData(self,startidx,endidx):
         self.plot.setData(self.data[startidx:endidx])
+        
 class PredictForwardPlot(IndicatorPlot):
     def __init__(self,name,data,hostplotwidget):
         super().__init__(name,data,hostplotwidget)
@@ -72,7 +76,7 @@ class PredictForwardPlot(IndicatorPlot):
         )
 
 class PGFigureLayoutWrap(QVBoxLayout):
-    def __init__(self,SeriesList):
+    def __init__(self,SeriesList,movingStats = None):
         super().__init__()
         
         self.indicators = []
@@ -112,8 +116,8 @@ class PGFigureLayoutWrap(QVBoxLayout):
         else:
             ...
         
-        self.DATAPOINTS = 3000
-        self.minorDP = 10000
+        self.DATAPOINTS = 10000#self.indicators[0].datalen()
+        self.minorDP = 15000
         self.totalDP = self.indicators[0].datalen()
         self.viewStartIdx = 0
         self.viewEndIdx = self.DATAPOINTS
@@ -128,6 +132,16 @@ class PGFigureLayoutWrap(QVBoxLayout):
         self.addWidget(self.slidersmall)
         self.addWidget(self.sliderbig)
 
+        #if movingStats is not None:
+        #    self.statwidget = QWidget()
+        #    self.statwidget.setLayout(QHBoxLayout)
+        #    for stat in movingStats:
+        #        self.statwidget.addWidget()
+        #
+        #
+        #    self.addWidget(statwidget)
+            
+        
         self.plot() 
     def plot(self):
         self.plotlines = {}
@@ -167,7 +181,7 @@ class MainWindow(QMainWindow):
         emaperiods = [100,200,300,24*100,24*200]
         from DataManipulation.DataHandler import DemaMinDayMultinom
         dataHset = DemaMinDayMultinom(hourly,emaperiods = emaperiods)
-        from DataManipulation.indicators import NStepForwardPredictByD1
+        from DataManipulation.indicators import NStepForwardPredictByD1,D1Crossing
         self.data = [
             {'name':'Close'     ,'data':hourly['Close'],   'indtype':'series', 'panelidx':0           },
             {'name':'ema100'    ,'data':hourly['ema100'],  'indtype':'series', 'panelidx':0           },
@@ -177,8 +191,14 @@ class MainWindow(QMainWindow):
             {'name':'ema4800'   ,'data':hourly['ema4800'], 'indtype':'series', 'panelidx':0           },
             {'name':'5StepEMA2400','data':NStepForwardPredictByD1(24*5).look(hourly['ema2400'].to_numpy()), 'indtype':'predictforward','panelidx':0   },
             {'name':'5StepEMA4800','data':NStepForwardPredictByD1(24*5).look(hourly['ema4800'].to_numpy()), 'indtype':'predictforward','panelidx':0   },
-
+            {'name':'24_48crossing','data':D1Crossing(hourly['ema2400'].to_numpy(), hourly['ema4800'].to_numpy(),n=24*5).astype('int8'), 'indtype':'series','panelidx':1   },
+            {'name':'4800Var4800','data':hourly['ema4800'].rolling(4800).var(),'indtype':'series','panelidx':2},
+            {'name':'2400Var2400','data':hourly['ema2400'].rolling(2400).var(),'indtype':'series','panelidx':2},
+            {'name':'300Var300','data':hourly['ema300'].rolling(300).std(),'indtype':'series','panelidx':2},
+            {'name':'100Var100','data':hourly['ema100'].rolling(100).var(),'indtype':'series','panelidx':2},
+            #{'name':'300D1DEV','data':hourly['ema300']-hourly['ema300'].rolling(300).mean(),'indtype':'series','panelidx':3}, Unstable
         ]
+        
 
         self.rightmain = PGFigureLayoutWrap(self.data)
 
