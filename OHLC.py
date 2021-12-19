@@ -18,6 +18,9 @@ import numpy as np
 import pandas as pd
 
 from abc import ABC, abstractmethod
+
+from DataManipulation.indicators import NStepForwardPredictByD1,D1Crossing, D1, D2, MYEMA, LTSupport
+
 class IndicatorPlot(ABC):
     def __init__(self,name,data,hostplotwidget,color = None):
         self.name = name
@@ -52,12 +55,13 @@ class SeriesPlot(IndicatorPlot):
         self.hostplotwidget.plotItem.vb.disableAutoRange()
         self.hostplotwidget.plotItem.setMouseEnabled(x=False, y=True)
     def updateData(self,startidx,endidx):
-        self.plot.setData(self.data[startidx:endidx])
+        self.plot.setData(self.data[startidx:endidx],connect="finite")
         
 class PredictForwardPlot(IndicatorPlot):
     def __init__(self,name,data,hostplotwidget,color =None):
         super().__init__(name,data,hostplotwidget,color)
         self.startpointratio = 4/5
+        self.plot = None
     def createLine(self,startidx,endidx,color = None):
         if color is None:
             if hasattr(self,'color') == False:
@@ -76,17 +80,19 @@ class PredictForwardPlot(IndicatorPlot):
         self.startpoint = int(self.startpointratio*(endidx-startidx)) + startidx
         self.plot.setData(
             list(range(self.startpoint+1-startidx,self.startpoint+1-startidx+len(self.data[self.startpoint,:]))),
-            self.data[self.startpoint,:]
+            self.data[self.startpoint,:],
+            connect="finite"
         )
 
 class PGFigureLayoutWrap(QVBoxLayout):
-    def __init__(self,SeriesList,movingStats = None):
+    def __init__(self,SeriesList,movingStats = None,datapoints = 10000):
         super().__init__()
         
         self.indicators = []
         #    self.colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k', 'w')
         
         self.plotpanels = []
+        self.panelsverts = []
         if isinstance(SeriesList,pd.DataFrame):
             ... 
         elif isinstance(SeriesList,list) and len(SeriesList)>0:
@@ -98,6 +104,9 @@ class PGFigureLayoutWrap(QVBoxLayout):
                 for i in range(SeriesList[-1]['panelidx']+1):
                     self.plotpanels.append(pg.PlotWidget())
                     self.addWidget(self.plotpanels[i])
+                    panelsvert = pg.InfiniteLine(angle = 90,movable = False)
+                    self.panelsverts.append(panelsvert)
+                    self.plotpanels[i].addItem(panelsvert)
                 for s in SeriesList:
                     if s['indtype'] == 'series':
                         self.indicators.append(
@@ -122,8 +131,8 @@ class PGFigureLayoutWrap(QVBoxLayout):
         else:
             ...
         
-        self.DATAPOINTS = 10000#self.indicators[0].datalen()
-        self.minorDP = 15000
+        self.DATAPOINTS = datapoints#self.indicators[0].datalen()
+        self.minorDP = int(self.DATAPOINTS*2)
         self.totalDP = self.indicators[0].datalen()
         self.viewStartIdx = 0
         self.viewEndIdx = self.DATAPOINTS
@@ -137,6 +146,11 @@ class PGFigureLayoutWrap(QVBoxLayout):
         self.sliderbig.setMaximum(self.totalDP-self.minorDP)
         self.addWidget(self.slidersmall)
         self.addWidget(self.sliderbig)
+        
+        self.vertlineslide = QSlider(Qt.Horizontal)
+        self.vertlineslide.setMaximum(self.minorDP-self.DATAPOINTS)
+        self.vertlineslide.sliderMoved.connect(self.vertmove)
+        self.addWidget(self.vertlineslide)
 
         #if movingStats is not None:
         #    self.statwidget = QWidget()
@@ -164,9 +178,12 @@ class PGFigureLayoutWrap(QVBoxLayout):
         self.viewStartIdx = self.slidersmall.value() + e
         self.viewEndIdx   = self.viewStartIdx + self.DATAPOINTS
         self.updatePlotData()
+    def vertmove(self,e):
+        for line in self.panelsverts:
+            line.setValue(e)
 class MainWindow(QMainWindow):
 
-    def __init__(self):
+    def __init__(self,period):
         super(MainWindow, self).__init__()
 
         self.setWindowTitle("My App")
@@ -176,12 +193,13 @@ class MainWindow(QMainWindow):
         self.leftbar.addWidget(QCheckBox())
         
         # right Content
-        self.rightmain = QVBoxLayout()
+        if period == 'm':
+            self.data = self.prepareMinutes()        
+            self.rightmain = PGFigureLayoutWrap(self.data,datapoints = 10000*60)
+        elif period == 'h':
+            self.data = self.prepareHourly()        
+            self.rightmain = PGFigureLayoutWrap(self.data,datapoints = 10000)
 
-        #self.data = self.prepareHourly()        
-        self.data = self.prepareMinutes()        
-
-        self.rightmain = PGFigureLayoutWrap(self.data)
 
         self.layout.addLayout(self.leftbar)
         self.layout.addLayout(self.rightmain)
@@ -199,7 +217,6 @@ class MainWindow(QMainWindow):
         emaperiods = [100,200,300,24*100,24*200]
         from DataManipulation.DataHandler import DemaMinDayMultinom
         dataHset = DemaMinDayMultinom(hourly,emaperiods = emaperiods)
-        from DataManipulation.indicators import NStepForwardPredictByD1,D1Crossing, D1,D2
         data = [
             {'name':'Close'     ,'data':hourly['Close'],   'indtype':'series', 'panelidx':0,'color':'b'           },
             {'name':'ema100'    ,'data':hourly['ema100'],  'indtype':'series', 'panelidx':0,'color':'r'           },
@@ -207,17 +224,30 @@ class MainWindow(QMainWindow):
             {'name':'ema300'    ,'data':hourly['ema300'],  'indtype':'series', 'panelidx':0,'color':'y'           },
             {'name':'ema2400'   ,'data':hourly['ema2400'], 'indtype':'series', 'panelidx':0,'color':'c'           },
             {'name':'ema4800'   ,'data':hourly['ema4800'], 'indtype':'series', 'panelidx':0,'color':'m'           },
-            {'name':'5StepEMA2400','data':NStepForwardPredictByD1(24*5).look(hourly['ema2400'].to_numpy()), 'indtype':'predictforward','panelidx':0,'color':'b'   },
-            {'name':'5StepEMA4800','data':NStepForwardPredictByD1(24*5).look(hourly['ema4800'].to_numpy()), 'indtype':'predictforward','panelidx':0,'color':'r'   },
-            {'name':'24_48crossing','data':D1Crossing(hourly['ema2400'].to_numpy(), hourly['ema4800'].to_numpy(),n=24*5).astype('int8'), 'indtype':'series','panelidx':1   },
-            {'name':'4800Var4800','data':hourly['ema4800'].rolling(4800).std(),'indtype':'series','panelidx':2,'color':'m'},
-            {'name':'2400Var2400','data':hourly['ema2400'].rolling(2400).std(),'indtype':'series','panelidx':2,'color':'c'},
-            {'name':'300Var300','data':hourly['ema300'].rolling(300).std()    ,'indtype':'series','panelidx':2,'color':'y'},
-            {'name':'100Var100','data':hourly['ema100'].rolling(100).std()    ,'indtype':'series','panelidx':2,'color':'r'},
-            {'name':'300Var300D1','data':D1(hourly['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':3,'color':'y'},
-            {'name':'_DIVIDER','data':np.zeros(len(hourly['ema300']))         ,'indtype':'series','panelidx':3,'color':'b'},
+            #{'name':'5StepEMA2400','data':NStepForwardPredictByD1(24*5).look(hourly['ema2400'].to_numpy()), 'indtype':'predictforward','panelidx':0,'color':'b'   },
+            #{'name':'5StepEMA4800','data':NStepForwardPredictByD1(24*5).look(hourly['ema4800'].to_numpy()), 'indtype':'predictforward','panelidx':0,'color':'r'   },
+            #{'name':'24_48crossing','data':D1Crossing(hourly['ema2400'].to_numpy(), hourly['ema4800'].to_numpy(),n=24*5).astype('int8'), 'indtype':'series','panelidx':1   },
+                        
+            {'name':'4800Var4800','data':hourly['ema4800'].rolling(4800).std(),'indtype':'series','panelidx':1,'color':'m'},
+            {'name':'2400Var2400','data':hourly['ema2400'].rolling(2400).std(),'indtype':'series','panelidx':1,'color':'c'},
+            {'name':'300Var300','data':hourly['ema300'].rolling(300).std()    ,'indtype':'series','panelidx':1,'color':'y'},
+            {'name':'100Var100','data':hourly['ema100'].rolling(100).std()    ,'indtype':'series','panelidx':1,'color':'r'},
             
-            {'name':'300Var300D2','data':D2(hourly['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':4,'color':'y'},
+            {'name':'100Var100D1','data':D1(hourly['ema100'].rolling(100).std())    ,'indtype':'series','panelidx':2,'color':'r'},
+            {'name':'300Var300D1','data':D1(hourly['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':2,'color':'y'},
+            {'name':'2400Var2400D1','data':D1(hourly['ema2400'].rolling(2400).std())    ,'indtype':'series','panelidx':2,'color':'c'},
+            {'name':'2400Var2400D1','data':D1(hourly['ema2400'].rolling(4800).std())    ,'indtype':'series','panelidx':2,'color':'m'},
+            
+            {'name':'_DIVIDER','data':np.zeros(len(hourly['ema300']))         ,'indtype':'series','panelidx':2,'color':'b'},
+            
+            {'name':'300Var300D2','data':D2(hourly['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':3,'color':'y'},
+            {'name':'2400Var2400D2','data':D2(hourly['ema2400'].rolling(2400).std())    ,'indtype':'series','panelidx':3,'color':'c'},
+            {'name':'4800Var4800D2','data':D2(hourly['ema4800'].rolling(4800).std())    ,'indtype':'series','panelidx':3,'color':'m'},
+
+            #{'name':'ema2400D1'   ,'data':D1(hourly['ema2400']), 'indtype':'series', 'panelidx':4,'color':'c'           },
+            {'name':'ema2400support'   ,'data':LTSupport(hourly['ema2400'].to_numpy(),emaperiod=2400), 'indtype':'series', 'panelidx':4,'color':'c'           },
+
+            
             #{'name':'300D1DEV','data':hourly['ema300']-hourly['ema300'].rolling(300).mean(),'indtype':'series','panelidx':3}, Unstable
         ]
         return data
@@ -226,7 +256,12 @@ class MainWindow(QMainWindow):
         emaperiods = [100,200,300,24*100,24*200]
         from DataManipulation.DataHandler import DemaMinDayMultinom
         dataMset = DemaMinDayMultinom(minutes,emaperiods = emaperiods)
-        from DataManipulation.indicators import NStepForwardPredictByD1,D1Crossing, D1,D2
+
+        ema100h = MYEMA(minutes['Close'],100*60)
+        ema300h = MYEMA(minutes['Close'],300*60)
+        ema2400h = MYEMA(minutes['Close'],2400*60)
+        ema4800h = MYEMA(minutes['Close'],4800*60)
+        
         data = [
             {'name':'Close'     ,'data':minutes['Close'],   'indtype':'series', 'panelidx':0,'color':'b'           },
             {'name':'ema100'    ,'data':minutes['ema100'],  'indtype':'series', 'panelidx':0,'color':'r'           },
@@ -234,18 +269,62 @@ class MainWindow(QMainWindow):
             {'name':'ema300'    ,'data':minutes['ema300'],  'indtype':'series', 'panelidx':0,'color':'y'           },
             {'name':'ema2400'   ,'data':minutes['ema2400'], 'indtype':'series', 'panelidx':0,'color':'c'           },
             {'name':'ema4800'   ,'data':minutes['ema4800'], 'indtype':'series', 'panelidx':0,'color':'m'           },
-            #{'name':'5StepEMA2400','data':NStepForwardPredictByD1(24*5).look(minutes['ema2400'].to_numpy()), 'indtype':'predictforward','panelidx':0,'color':'b'   },
-            #{'name':'5StepEMA4800','data':NStepForwardPredictByD1(24*5).look(minutes['ema4800'].to_numpy()), 'indtype':'predictforward','panelidx':0,'color':'r'   },
-            {'name':'24_48crossing','data':D1Crossing(minutes['ema2400'].to_numpy(), minutes['ema4800'].to_numpy(),n=24*5).astype('int8'), 'indtype':'series','panelidx':1   },
-            {'name':'4800Var4800','data':minutes['ema4800'].rolling(4800).std(),'indtype':'series','panelidx':2,'color':'m'},
-            {'name':'2400Var2400','data':minutes['ema2400'].rolling(2400).std(),'indtype':'series','panelidx':2,'color':'c'},
-            {'name':'300Var300','data':minutes['ema300'].rolling(300).std()    ,'indtype':'series','panelidx':2,'color':'y'},
-            {'name':'100Var100','data':minutes['ema100'].rolling(100).std()    ,'indtype':'series','panelidx':2,'color':'r'},
-            {'name':'300Var300D1','data':D1(minutes['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':3,'color':'y'},
-            #{'name':'_DIVIDER','data':np.zeros(len(minutes['ema300']))         ,'indtype':'series','panelidx':3,'color':'b'},
+            {'name':'ema100h'    ,'data':ema100h, 'indtype':'series', 'panelidx':0,'color':'m'           },
+            {'name':'ema300h'    ,'data':ema300h, 'indtype':'series', 'panelidx':0,'color':'m'           },
+            {'name':'ema2400h'   ,'data':ema2400h, 'indtype':'series', 'panelidx':0,'color':'m'           },
+            {'name':'ema4800h'   ,'data':ema4800h, 'indtype':'series', 'panelidx':0,'color':'m'           },
             
-            {'name':'300Var300D2','data':D2(minutes['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':4,'color':'y'},
+            {'name':'4800hVar4800','data':pd.Series(ema4800h).rolling(4800*60).std(),'indtype':'series','panelidx':1,'color':'m'},
+            {'name':'2400hVar2400','data':pd.Series(ema2400h).rolling(2400*60).std(),'indtype':'series','panelidx':1,'color':'c'},
+            {'name':'300hVar300','data':pd.Series(ema300h).rolling(300*60).std()    ,'indtype':'series','panelidx':1,'color':'y'},
+            {'name':'100hVar100','data':pd.Series(ema100h).rolling(100*60).std()    ,'indtype':'series','panelidx':1,'color':'r'},
+            {'name':'300hVar300D1','data':D1(pd.Series(ema300h).rolling(300*60).std())    ,'indtype':'series','panelidx':2,'color':'y'},
+            #{'name':'_DIVIDER','data':np.zeros(len(minutes['ema300']))         ,'indtype':'series','panelidx':2,'color':'b'},
+            
+            {'name':'300Var300D2','data':D2(pd.Series(ema300h).rolling(300*60).std())    ,'indtype':'series','panelidx':3,'color':'y'},
+
+            #{'name':'4800Var4800','data':minutes['ema4800'].rolling(4800).std(),'indtype':'series','panelidx':1,'color':'m'},
+            #{'name':'2400Var2400','data':minutes['ema2400'].rolling(2400).std(),'indtype':'series','panelidx':1,'color':'c'},
+            #{'name':'300Var300','data':minutes['ema300'].rolling(300).std()    ,'indtype':'series','panelidx':1,'color':'y'},
+            #{'name':'100Var100','data':minutes['ema100'].rolling(100).std()    ,'indtype':'series','panelidx':1,'color':'r'},
+            #{'name':'300Var300D1','data':D1(minutes['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':2,'color':'y'},
+            #{'name':'_DIVIDER','data':np.zeros(len(minutes['ema300']))         ,'indtype':'series','panelidx':3,'color':'b'},
+            #{'name':'300Var300D2','data':D2(minutes['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':3,'color':'y'},
+            
             #{'name':'300D1DEV','data':minutes['ema300']-minutes['ema300'].rolling(300).mean(),'indtype':'series','panelidx':3}, Unstable
+        ]
+        return data
+    def prepareLongSupportSplit(self,):
+        minutes = self.getOHLC_pickle("EURUSD_M_2010_2021.pkl")
+        hourly = minutes.resample('1H').agg({'Open': 'first', 
+                        'High': 'max', 
+                        'Low': 'min', 
+                        'Close': 'last'}).dropna()
+        emaperiods = [100,200,300,24*100,24*200]
+        from DataManipulation.DataHandler import DemaMinDayMultinom
+        dataHset = DemaMinDayMultinom(hourly,emaperiods = emaperiods)
+        data = [
+            {'name':'Close'     ,'data':hourly['Close'],   'indtype':'series', 'panelidx':0,'color':'b'           },
+            {'name':'ema100'    ,'data':hourly['ema100'],  'indtype':'series', 'panelidx':0,'color':'r'           },
+            {'name':'ema200'    ,'data':hourly['ema200'],  'indtype':'series', 'panelidx':0,'color':'g'           },
+            {'name':'ema300'    ,'data':hourly['ema300'],  'indtype':'series', 'panelidx':0,'color':'y'           },
+            {'name':'ema2400'   ,'data':hourly['ema2400'], 'indtype':'series', 'panelidx':0,'color':'c'           },
+            {'name':'ema4800'   ,'data':hourly['ema4800'], 'indtype':'series', 'panelidx':0,'color':'m'           },            
+            
+            {'name':'4800Var4800','data':hourly['ema4800'].rolling(4800).std(),'indtype':'series','panelidx':2,'color':'m'},
+            {'name':'2400Var2400','data':hourly['ema2400'].rolling(2400).std(),'indtype':'series','panelidx':2,'color':'c'},
+            {'name':'300Var300','data':hourly['ema300'].rolling(300).std()    ,'indtype':'series','panelidx':2,'color':'y'},
+            {'name':'100Var100','data':hourly['ema100'].rolling(100).std()    ,'indtype':'series','panelidx':2,'color':'r'},
+            {'name':'300Var300D1','data':D1(hourly['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':3,'color':'y'},
+            {'name':'2400Var2400D1','data':D1(hourly['ema2400'].rolling(2400).std())    ,'indtype':'series','panelidx':3,'color':'c'},
+            {'name':'2400Var2400D1','data':D1(hourly['ema2400'].rolling(4800).std())    ,'indtype':'series','panelidx':3,'color':'m'},
+            
+            {'name':'_DIVIDER','data':np.zeros(len(hourly['ema300']))         ,'indtype':'series','panelidx':3,'color':'b'},
+            
+            {'name':'300Var300D2','data':D2(hourly['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':4,'color':'y'},
+            {'name':'2400Var2400D2','data':D2(hourly['ema2400'].rolling(2400).std())    ,'indtype':'series','panelidx':4,'color':'c'},
+            {'name':'4800Var4800D2','data':D2(hourly['ema4800'].rolling(4800).std())    ,'indtype':'series','panelidx':4,'color':'m'},
+            #{'name':'300D1DEV','data':hourly['ema300']-hourly['ema300'].rolling(300).mean(),'indtype':'series','panelidx':3}, Unstable
         ]
         return data
     def getOHLC_pickle(self,pklpath):
@@ -276,9 +355,21 @@ class MainWindow(QMainWindow):
             with open('OHLC.pkl','wb') as f:
                 pickle.dump(data,f,protocol=pickle.HIGHEST_PROTOCOL)
         return data
-app = QApplication(sys.argv)
+if __name__ == '__main__':
+    print("MAIN")
+    import argparse 
+    
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('-p','--period',action='store',required=True,help = "h for hour, m for minutes")
 
-window = MainWindow()
-window.show()
+    args = parser.parse_args()
+    if args.period == 'h' or args.period == 'm':
+        app = QApplication(sys.argv)
 
-app.exec()
+        window = MainWindow(args.period)
+        window.show()
+
+        app.exec()    
+    else:
+        print("not supported")
+

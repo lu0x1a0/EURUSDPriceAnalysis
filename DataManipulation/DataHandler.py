@@ -13,26 +13,7 @@ from .indicators import D1,D2
 # significantly slower than talib, but think its due to numba initial call overhead.
 # i.e. i think it scales well
 
-@numba.jit(nopython = True)
-def NUMBAEMA(series,period):
-    myema = np.empty(len(series),dtype="float64")
-    myema[:] = np.nan
-    smoothing = 2
-    start_idx = period
-
-    myema[start_idx] = np.mean(series[0:period])
-    for i in range(period+1,len(series)):
-        #print(myema[i-1]*(1+period-smoothing))
-        myema[i] = myema[i-1]*(1+period-smoothing)/(1+period)+series[i]*(smoothing)/(1+period)
-    return myema
-def MYEMA(series,period):
-    
-    if isinstance(series,pd.Series):
-        raw = series.to_numpy()
-    else:
-        raw = series
-    return pd.Series(NUMBAEMA(raw,period),index = series.index)
-
+from .indicators import MYEMA
 
 from torch.utils.data import TensorDataset, Dataset
 from typing import List,Callable

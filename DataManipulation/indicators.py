@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import numba
 # Numerical 1st Derivative
 def D1(TS):
     if isinstance(TS,pd.Series):
@@ -77,3 +78,53 @@ def D1Crossing(TS1,TS2, TS1D1=None,TS2D1=None,n = 5):
     
     result = (inter<=n) & (inter > 0)
     return result
+
+@numba.jit(nopython = True)
+def NUMBAEMA(series,period):
+    myema = np.empty(len(series),dtype="float64")
+    myema[:] = np.nan
+    smoothing = 2
+    start_idx = period
+
+    myema[start_idx] = np.mean(series[0:period])
+    for i in range(period+1,len(series)):
+        #print(myema[i-1]*(1+period-smoothing))
+        myema[i] = myema[i-1]*(1+period-smoothing)/(1+period)+series[i]*(smoothing)/(1+period)
+    return myema
+def MYEMA(series,period):
+    
+    if isinstance(series,pd.Series):
+        raw = series.to_numpy()
+    else:
+        raw = series
+    return pd.Series(NUMBAEMA(raw,period),index = series.index)
+
+
+# This version is base on long range
+def LTSupport(ema,emastd = None,emastdd1 = None,emaperiod = None):
+    emastd      =  pd.Series(ema).rolling(emaperiod).std().to_numpy() if emastd is None else emastd
+    emastdd1    = D1(emastd) if emastdd1 is None else emastdd1
+    return LTSupportCalc(ema,emastd,emastdd1)
+@numba.jit(nopython = True)
+def LTSupportCalc(ema,emastd,emastdd1):
+    support = np.zeros(len(ema))
+    support.fill(np.nan)
+    
+    enterid   = -1
+    exitid    = -1
+    direction = 0
+    for i in range(1,len(ema)):
+        if np.sign(emastdd1[i]) == 1 and np.sign(emastdd1[i-1]) == -1: #sign(nan) == sign(nan) gives false
+            if ema[i]>ema[i-1]:
+                direction =  1
+            elif ema[i]<ema[i-1]:
+                direction = -1
+            enterid = i
+        if np.sign(emastdd1[i]) == -1 and np.sign(emastdd1[i-1]) == 1:
+            exitid = i
+            if enterid != -1:
+                support[enterid:exitid+1] = direction
+            enterid = -1
+            exitid = -1
+    return support
+
