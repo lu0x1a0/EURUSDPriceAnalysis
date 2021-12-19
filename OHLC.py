@@ -85,9 +85,9 @@ class PredictForwardPlot(IndicatorPlot):
         )
 
 class PGFigureLayoutWrap(QVBoxLayout):
-    def __init__(self,SeriesList,movingStats = None,datapoints = 10000):
+    def __init__(self,SeriesList,movingStats = None,datapoints = 10000, vertlabeldisplay = None):
         super().__init__()
-        
+        self.vertlabeldisplay = vertlabeldisplay
         self.indicators = []
         #    self.colors = ('b', 'g', 'r', 'c', 'm', 'y', 'k', 'w')
         
@@ -181,6 +181,8 @@ class PGFigureLayoutWrap(QVBoxLayout):
     def vertmove(self,e):
         for line in self.panelsverts:
             line.setValue(e)
+        if self.vertlabeldisplay is not None:
+            self.vertlabeldisplay.setText(str(e))
 class MainWindow(QMainWindow):
 
     def __init__(self,period):
@@ -189,16 +191,17 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("My App")
         self.layout = QHBoxLayout()
         
+        self.VertBarValue = QLabel("EMPTY")#QCheckBox()
         self.leftbar = QVBoxLayout()
-        self.leftbar.addWidget(QCheckBox())
+        self.leftbar.addWidget(self.VertBarValue)
         
         # right Content
         if period == 'm':
             self.data = self.prepareMinutes()        
-            self.rightmain = PGFigureLayoutWrap(self.data,datapoints = 10000*60)
+            self.rightmain = PGFigureLayoutWrap(self.data,datapoints = 10000*10,vertlabeldisplay = self.VertBarValue)
         elif period == 'h':
             self.data = self.prepareHourly()        
-            self.rightmain = PGFigureLayoutWrap(self.data,datapoints = 10000)
+            self.rightmain = PGFigureLayoutWrap(self.data,datapoints = 10000,vertlabeldisplay = self.VertBarValue)
 
 
         self.layout.addLayout(self.leftbar)
@@ -253,8 +256,15 @@ class MainWindow(QMainWindow):
             #{'name':'4800Var4800D2','data':D2(hourly['ema4800'].rolling(4800).std())    ,'indtype':'series','panelidx':3,'color':'m'},
 
             #{'name':'ema2400D1'   ,'data':D1(hourly['ema2400']), 'indtype':'series', 'panelidx':4,'color':'c'           },
-            {'name':'ema2400support'   ,'data':LTSupport(hourly['ema2400'].to_numpy(),emaperiod=2400), 'indtype':'series', 'panelidx':4,'color':'c'           },
+            
+            #{'name':'ema2400support'   ,'data':LTSupport(hourly['ema2400'].to_numpy(),emaperiod=2400), 'indtype':'series', 'panelidx':4,'color':'c'           },
 
+            {'name':'2400-4800','data':MYEMA(hourly['ema2400']-hourly['ema4800'],period=2400)    ,'indtype':'series','panelidx':4,'color':'r'},
+            {'name':'2400-4800','data':MYEMA(hourly['ema2400']-hourly['ema4800'],period=4800)    ,'indtype':'series','panelidx':4,'color':'y'},
+            {'name':'2400-4800','data':hourly['ema2400']-hourly['ema4800']    ,'indtype':'series','panelidx':4,'color':'c'},
+            #{'name':'100-300','data':(hourly['ema100']-hourly['ema300']).rolling(300).std()    ,'indtype':'series','panelidx':3,'color':'c'},
+            {'name':'_DIVIDER','data':np.zeros(len(hourly['ema300']))         ,'indtype':'series','panelidx':4,'color':'b'},
+    
             
             #{'name':'300D1DEV','data':hourly['ema300']-hourly['ema300'].rolling(300).mean(),'indtype':'series','panelidx':3}, Unstable
         ]
@@ -264,6 +274,42 @@ class MainWindow(QMainWindow):
 
         return data
     def prepareMinutes(self,):
+        minutes = self.getOHLC_pickle("EURUSD_M_2010_2021.pkl")
+        emaperiods = [100,200,300,24*100,24*200]
+        from DataManipulation.DataHandler import DemaMinDayMultinom
+        dataMset = DemaMinDayMultinom(minutes,emaperiods = emaperiods)
+
+        ema100h = MYEMA(minutes['Close'],100*60)
+        ema300h = MYEMA(minutes['Close'],300*60)
+        ema2400h = MYEMA(minutes['Close'],2400*60)
+        ema4800h = MYEMA(minutes['Close'],4800*60)
+        
+        data = [
+            {'name':'Close'     ,'data':minutes['Close'],   'indtype':'series', 'panelidx':0,'color':'b'           },
+            {'name':'ema100'    ,'data':minutes['ema100'],  'indtype':'series', 'panelidx':0,'color':'r'           },
+            {'name':'ema200'    ,'data':minutes['ema200'],  'indtype':'series', 'panelidx':0,'color':'g'           },
+            {'name':'ema300'    ,'data':minutes['ema300'],  'indtype':'series', 'panelidx':0,'color':'y'           },
+            {'name':'ema2400'   ,'data':minutes['ema2400'], 'indtype':'series', 'panelidx':0,'color':'c'           },
+            {'name':'ema4800'   ,'data':minutes['ema4800'], 'indtype':'series', 'panelidx':0,'color':'m'           },
+            {'name':'ema100h'    ,'data':ema100h, 'indtype':'series', 'panelidx':0,'color':'m'           },
+            {'name':'ema300h'    ,'data':ema300h, 'indtype':'series', 'panelidx':0,'color':'m'           },
+            {'name':'ema2400h'   ,'data':ema2400h, 'indtype':'series', 'panelidx':0,'color':'m'           },
+            {'name':'ema4800h'   ,'data':ema4800h, 'indtype':'series', 'panelidx':0,'color':'m'           },
+            
+            {'name':'4800hVar4800','data':pd.Series(ema4800h).rolling(4800*60).std(),'indtype':'series','panelidx':1,'color':'m'},
+            {'name':'2400hVar2400','data':pd.Series(ema2400h).rolling(2400*60).std(),'indtype':'series','panelidx':1,'color':'c'},
+            {'name':'300hVar300','data':pd.Series(ema300h).rolling(300*60).std()    ,'indtype':'series','panelidx':1,'color':'y'},
+            {'name':'100hVar100','data':pd.Series(ema100h).rolling(100*60).std()    ,'indtype':'series','panelidx':1,'color':'r'},
+            {'name':'300hVar300D1','data':D1(pd.Series(ema300h).rolling(300*60).std())    ,'indtype':'series','panelidx':2,'color':'y'},
+            #{'name':'_DIVIDER','data':np.zeros(len(minutes['ema300']))         ,'indtype':'series','panelidx':2,'color':'b'},
+            
+            {'name':'2400-4800','data':MYEMA(minutes['ema2400']-minutes['ema4800'],period=2400)    ,'indtype':'series','panelidx':3,'color':'r'},
+            {'name':'2400-4800','data':MYEMA(minutes['ema2400']-minutes['ema4800'],period=4800)    ,'indtype':'series','panelidx':3,'color':'y'},
+            {'name':'2400-4800','data':minutes['ema2400']-minutes['ema4800']    ,'indtype':'series','panelidx':3,'color':'c'},
+            {'name':'_DIVIDER','data':np.zeros(len(minutes['ema300']))         ,'indtype':'series','panelidx':3,'color':'b'},
+        ]
+        return data
+    def prepareMinutes_Old(self,):
         minutes = self.getOHLC_pickle("EURUSD_M_2010_2021.pkl")
         emaperiods = [100,200,300,24*100,24*200]
         from DataManipulation.DataHandler import DemaMinDayMultinom
@@ -306,39 +352,7 @@ class MainWindow(QMainWindow):
             #{'name':'300D1DEV','data':minutes['ema300']-minutes['ema300'].rolling(300).mean(),'indtype':'series','panelidx':3}, Unstable
         ]
         return data
-    def prepareLongSupportSplit(self,):
-        minutes = self.getOHLC_pickle("EURUSD_M_2010_2021.pkl")
-        hourly = minutes.resample('1H').agg({'Open': 'first', 
-                        'High': 'max', 
-                        'Low': 'min', 
-                        'Close': 'last'}).dropna()
-        emaperiods = [100,200,300,24*100,24*200]
-        from DataManipulation.DataHandler import DemaMinDayMultinom
-        dataHset = DemaMinDayMultinom(hourly,emaperiods = emaperiods)
-        data = [
-            {'name':'Close'     ,'data':hourly['Close'],   'indtype':'series', 'panelidx':0,'color':'b'           },
-            {'name':'ema100'    ,'data':hourly['ema100'],  'indtype':'series', 'panelidx':0,'color':'r'           },
-            {'name':'ema200'    ,'data':hourly['ema200'],  'indtype':'series', 'panelidx':0,'color':'g'           },
-            {'name':'ema300'    ,'data':hourly['ema300'],  'indtype':'series', 'panelidx':0,'color':'y'           },
-            {'name':'ema2400'   ,'data':hourly['ema2400'], 'indtype':'series', 'panelidx':0,'color':'c'           },
-            {'name':'ema4800'   ,'data':hourly['ema4800'], 'indtype':'series', 'panelidx':0,'color':'m'           },            
-            
-            {'name':'4800Var4800','data':hourly['ema4800'].rolling(4800).std(),'indtype':'series','panelidx':2,'color':'m'},
-            {'name':'2400Var2400','data':hourly['ema2400'].rolling(2400).std(),'indtype':'series','panelidx':2,'color':'c'},
-            {'name':'300Var300','data':hourly['ema300'].rolling(300).std()    ,'indtype':'series','panelidx':2,'color':'y'},
-            {'name':'100Var100','data':hourly['ema100'].rolling(100).std()    ,'indtype':'series','panelidx':2,'color':'r'},
-            {'name':'300Var300D1','data':D1(hourly['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':3,'color':'y'},
-            {'name':'2400Var2400D1','data':D1(hourly['ema2400'].rolling(2400).std())    ,'indtype':'series','panelidx':3,'color':'c'},
-            {'name':'2400Var2400D1','data':D1(hourly['ema2400'].rolling(4800).std())    ,'indtype':'series','panelidx':3,'color':'m'},
-            
-            {'name':'_DIVIDER','data':np.zeros(len(hourly['ema300']))         ,'indtype':'series','panelidx':3,'color':'b'},
-            
-            {'name':'300Var300D2','data':D2(hourly['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':4,'color':'y'},
-            {'name':'2400Var2400D2','data':D2(hourly['ema2400'].rolling(2400).std())    ,'indtype':'series','panelidx':4,'color':'c'},
-            {'name':'4800Var4800D2','data':D2(hourly['ema4800'].rolling(4800).std())    ,'indtype':'series','panelidx':4,'color':'m'},
-            #{'name':'300D1DEV','data':hourly['ema300']-hourly['ema300'].rolling(300).mean(),'indtype':'series','panelidx':3}, Unstable
-        ]
-        return data
+
     def getOHLC_pickle(self,pklpath):
         import pickle
         with open(pklpath,'rb') as f:
