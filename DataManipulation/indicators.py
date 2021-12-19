@@ -84,17 +84,28 @@ def NUMBAEMA(series,period):
     myema = np.empty(len(series),dtype="float64")
     myema[:] = np.nan
     smoothing = 2
-    start_idx = period
-
-    myema[start_idx] = np.mean(series[0:period])
-    for i in range(period+1,len(series)):
+    nan_idx = np.where(np.isnan(series))[0]
+    lastnan_idx = -1
+    if len(nan_idx)!=0:
+        lastnan_idx = nan_idx[-1]
+    start_idx = lastnan_idx + 1 + period
+    
+    myema[start_idx] = np.mean(series[lastnan_idx + 1:start_idx])
+    for i in range(start_idx+1,len(series)):
+    #start_idx = period
+    #myema[start_idx] = np.mean(series[0:period])
+    #for i in range(period+1,len(series)):
         #print(myema[i-1]*(1+period-smoothing))
         myema[i] = myema[i-1]*(1+period-smoothing)/(1+period)+series[i]*(smoothing)/(1+period)
     return myema
-def MYEMA(series,period):
-    
+def MYEMA(series,period,debug = False):
     if isinstance(series,pd.Series):
         raw = series.to_numpy()
+        if debug:
+            print("MYEMA")
+            print(np.where(np.isnan(raw)))
+            print(type(np.where(np.isnan(raw))))
+            print("FUCK U PIECE OF SHIT")
     else:
         raw = series
     return pd.Series(NUMBAEMA(raw,period),index = series.index)

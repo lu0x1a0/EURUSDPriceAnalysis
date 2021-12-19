@@ -219,6 +219,7 @@ class MainWindow(QMainWindow):
         dataHset = DemaMinDayMultinom(hourly,emaperiods = emaperiods)
         data = [
             {'name':'Close'     ,'data':hourly['Close'],   'indtype':'series', 'panelidx':0,'color':'b'           },
+            {'name':'dema9'     ,'data':hourly['dema9'],  'indtype':'series', 'panelidx':0,'color': 'c'           },
             {'name':'ema100'    ,'data':hourly['ema100'],  'indtype':'series', 'panelidx':0,'color':'r'           },
             {'name':'ema200'    ,'data':hourly['ema200'],  'indtype':'series', 'panelidx':0,'color':'g'           },
             {'name':'ema300'    ,'data':hourly['ema300'],  'indtype':'series', 'panelidx':0,'color':'y'           },
@@ -240,9 +241,16 @@ class MainWindow(QMainWindow):
             
             {'name':'_DIVIDER','data':np.zeros(len(hourly['ema300']))         ,'indtype':'series','panelidx':2,'color':'b'},
             
-            {'name':'300Var300D2','data':D2(hourly['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':3,'color':'y'},
-            {'name':'2400Var2400D2','data':D2(hourly['ema2400'].rolling(2400).std())    ,'indtype':'series','panelidx':3,'color':'c'},
-            {'name':'4800Var4800D2','data':D2(hourly['ema4800'].rolling(4800).std())    ,'indtype':'series','panelidx':3,'color':'m'},
+            {'name':'100-300','data':MYEMA(hourly['ema100']-hourly['ema300'],period=100)    ,'indtype':'series','panelidx':3,'color':'r'},
+            {'name':'100-300','data':MYEMA(hourly['ema100']-hourly['ema300'],period=300)    ,'indtype':'series','panelidx':3,'color':'y'},
+            {'name':'100-300','data':hourly['ema100']-hourly['ema300']    ,'indtype':'series','panelidx':3,'color':'c'},
+            #{'name':'100-300','data':(hourly['ema100']-hourly['ema300']).rolling(300).std()    ,'indtype':'series','panelidx':3,'color':'c'},
+            {'name':'_DIVIDER','data':np.zeros(len(hourly['ema300']))         ,'indtype':'series','panelidx':3,'color':'b'},
+
+
+            #{'name':'300Var300D2','data':D2(hourly['ema300'].rolling(300).std())    ,'indtype':'series','panelidx':3,'color':'y'},
+            #{'name':'2400Var2400D2','data':D2(hourly['ema2400'].rolling(2400).std())    ,'indtype':'series','panelidx':3,'color':'c'},
+            #{'name':'4800Var4800D2','data':D2(hourly['ema4800'].rolling(4800).std())    ,'indtype':'series','panelidx':3,'color':'m'},
 
             #{'name':'ema2400D1'   ,'data':D1(hourly['ema2400']), 'indtype':'series', 'panelidx':4,'color':'c'           },
             {'name':'ema2400support'   ,'data':LTSupport(hourly['ema2400'].to_numpy(),emaperiod=2400), 'indtype':'series', 'panelidx':4,'color':'c'           },
@@ -250,6 +258,10 @@ class MainWindow(QMainWindow):
             
             #{'name':'300D1DEV','data':hourly['ema300']-hourly['ema300'].rolling(300).mean(),'indtype':'series','panelidx':3}, Unstable
         ]
+
+        #print(MYEMA(hourly['ema100']-hourly['ema300'],period = 100,debug = True) )
+        #print(MYEMA(hourly['Close'],period = 100,debug = True) )
+
         return data
     def prepareMinutes(self,):
         minutes = self.getOHLC_pickle("EURUSD_M_2010_2021.pkl")
