@@ -23,17 +23,28 @@ class PlotPanel(pg.PlotWidget):
         self.colors = {series_name:self.palette[i%len(self.palette)] for i,series_name in enumerate(df)} if colors is None else colors
         self.df = df
         self.indicators = {} # Dict{plot}
-        print(self.indicators)
         #self.installEventFilter(self)
         #if isinstance(series,list) and isinstance(series[0],pd.Series):
     def createPlot(self,startidx,endidx):
+        last_not_nan_series_name = None
         for series_name in self.df:
-            pen = pg.mkPen(self.colors[series_name])
-            self.indicators[series_name] = self.plot(self.df[series_name].iloc[startidx:endidx],pen=pen,name=series_name)
-            
+            pen = pg.mkPen(self.colors[series_name])                
+            if not self.df[series_name].iloc[startidx:endidx].isnull().all():
+                self.indicators[series_name] = self.plot(self.df[series_name].iloc[startidx:endidx],pen=pen,name=series_name)
+                last_not_nan_series_name = series_name
+            else:
+                if last_not_nan_series_name is None:
+                    self.indicators[series_name] = self.plot(0,pen=pen,name=series_name)
+                else:
+                    self.indicators[series_name] = self.plot(self.df[last_not_nan_series_name].iloc[0:1],pen=pen,name=series_name)
+        #self.plotItem.vb.disableAutoRange()
+        self.plotItem.setMouseEnabled(x=False, y=True)
     def updateData(self,startidx,endidx):
         for series_name in self.df:
-            self.indicators[series_name].setData(self.df[series_name].iloc[startidx:endidx],connect="finite")
+            if not self.df[series_name].iloc[startidx:endidx].isnull().all():
+                #print(self.df[series_name].iloc[startidx:endidx])
+                self.indicators[series_name].setData(self.df[series_name].iloc[startidx:endidx],connect="finite")
+        
     #def eventFilter(self, watched, event):
     #    if event.type() == QEvent.GraphicsSceneWheel:
     #        return True

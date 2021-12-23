@@ -50,10 +50,11 @@ class PGFigureLayoutWrap(QVBoxLayout):
         for line in self.vertlines:
             line.setValue(e)
     def sliderSmove(self,e):
-        print('Small:',e)
+        #print('Small:',e)
+        self.vertlineslide.setMaximum(e[1]-e[0])
         self.viewStartIdx = self.sliderbig.value() + e[0]
         self.viewEndIdx   = self.viewStartIdx + (e[1] - e[0])#self.displayDP
-        print(int(self.viewStartIdx),int(self.viewEndIdx))
+        #print(int(self.viewStartIdx),int(self.viewEndIdx))
         self.updatePanels(int(self.viewStartIdx),int(self.viewEndIdx))
     def sliderBmove(self,e):
         #print('Big:',e)

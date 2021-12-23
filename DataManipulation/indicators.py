@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import numba
+from talib import DEMA
 # Numerical 1st Derivative
 def D1(TS):
     if isinstance(TS,pd.Series):
