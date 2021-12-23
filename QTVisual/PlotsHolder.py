@@ -13,6 +13,8 @@ class PGFigureLayoutWrap(QVBoxLayout):
         self.totalDP = totalDP
         self.slider2DP = int(totalDP/10) if slider2DP <= 0 else slider2DP
         self.displayDP = displayDP
+        self.viewStartIdx = 0
+        self.viewEndIdx   = self.displayDP
 
         self.plotpanels = plotPanels
         self.vertlines = []
@@ -20,6 +22,7 @@ class PGFigureLayoutWrap(QVBoxLayout):
             self.addWidget(p)
             self.vertlines.append(pg.InfiniteLine(angle = 90,movable = False))
             p.addItem(self.vertlines[i])
+            p.createPlot(self.viewStartIdx,self.viewEndIdx)
         self.slidersmall = QSlider(Qt.Horizontal)
         self.sliderbig = QSlider(Qt.Horizontal)
         self.vertlineslide = QSlider(Qt.Horizontal)
@@ -36,11 +39,20 @@ class PGFigureLayoutWrap(QVBoxLayout):
         self.addWidget(self.slidersmall)
         self.addWidget(self.sliderbig)
         self.addWidget(self.vertlineslide)
+    def updatePanels(self,startidx,endidx):
+        for plotpanel in self.plotpanels:
+            plotpanel.updateData(startidx,endidx)
     def vertmove(self,e):
         print(e)
-        for line in self.plotpanels:
+        for line in self.vertlines:
             line.setValue(e)
     def sliderSmove(self,e):
         print('Small:',e)
+        self.viewStartIdx = self.sliderbig.value() + e
+        self.viewEndIdx   = self.viewStartIdx + self.displayDP
+        self.updatePanels(self.viewStartIdx,self.viewEndIdx)
     def sliderBmove(self,e):
-        print('Big  :',e)
+        print('Big:',e)
+        self.viewStartIdx = self.slidersmall.value() + e
+        self.viewEndIdx   = self.viewStartIdx + self.displayDP
+        self.updatePanels(self.viewStartIdx,self.viewEndIdx)
