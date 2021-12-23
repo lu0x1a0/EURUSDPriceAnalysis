@@ -26,6 +26,7 @@ class PlotPanel(pg.PlotWidget):
         #self.installEventFilter(self)
         #if isinstance(series,list) and isinstance(series[0],pd.Series):
     def createPlot(self,startidx,endidx):
+        self.addLegend()
         last_not_nan_series_name = None
         for series_name in self.df:
             pen = pg.mkPen(self.colors[series_name])                
