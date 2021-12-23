@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QSlider,
 )
+from superqt import QRangeSlider
 from typing import Type, List
 from .Plot import PlotPanel
 import pyqtgraph as pg
@@ -23,16 +24,18 @@ class PGFigureLayoutWrap(QVBoxLayout):
             self.vertlines.append(pg.InfiniteLine(angle = 90,movable = False))
             p.addItem(self.vertlines[i])
             p.createPlot(self.viewStartIdx,self.viewEndIdx)
-        self.slidersmall = QSlider(Qt.Horizontal)
+        self.slidersmall = QRangeSlider(Qt.Horizontal)
         self.sliderbig = QSlider(Qt.Horizontal)
         self.vertlineslide = QSlider(Qt.Horizontal)
 
 
         self.slidersmall.sliderMoved.connect(self.sliderSmove)
+        self.slidersmall.setTracking(True)
         self.sliderbig.sliderMoved.connect(self.sliderBmove)
         self.vertlineslide.sliderMoved.connect(self.vertmove)
 
-        self.slidersmall.setMaximum(self.slider2DP-self.displayDP)
+        self.slidersmall.setMaximum(self.slider2DP)
+        self.slidersmall.setValue((0,self.displayDP))
         self.sliderbig.setMaximum(self.totalDP-self.slider2DP)
         self.vertlineslide.setMaximum(displayDP)
         
@@ -48,11 +51,12 @@ class PGFigureLayoutWrap(QVBoxLayout):
             line.setValue(e)
     def sliderSmove(self,e):
         print('Small:',e)
-        self.viewStartIdx = self.sliderbig.value() + e
-        self.viewEndIdx   = self.viewStartIdx + self.displayDP
-        self.updatePanels(self.viewStartIdx,self.viewEndIdx)
+        self.viewStartIdx = self.sliderbig.value() + e[0]
+        self.viewEndIdx   = self.viewStartIdx + (e[1] - e[0])#self.displayDP
+        print(int(self.viewStartIdx),int(self.viewEndIdx))
+        self.updatePanels(int(self.viewStartIdx),int(self.viewEndIdx))
     def sliderBmove(self,e):
-        print('Big:',e)
-        self.viewStartIdx = self.slidersmall.value() + e
-        self.viewEndIdx   = self.viewStartIdx + self.displayDP
-        self.updatePanels(self.viewStartIdx,self.viewEndIdx)
+        #print('Big:',e)
+        self.viewStartIdx = self.slidersmall.value()[0] + e
+        self.viewEndIdx   = self.viewStartIdx + (self.slidersmall.value()[1] - self.slidersmall.value()[0])#self.displayDP
+        self.updatePanels(int(self.viewStartIdx),int(self.viewEndIdx))
