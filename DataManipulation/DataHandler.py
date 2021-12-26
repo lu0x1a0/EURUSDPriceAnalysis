@@ -23,6 +23,37 @@ np.set_printoptions(threshold=sys.maxsize)
 
 
 import pickle
+
+
+def getOHLC_pickle(pklpath):
+        import pickle
+        with open(pklpath,'rb') as f:
+            data = pickle.load(f)
+            return data
+def getOHLC_raw(to_pickle=False):
+    from DataManipulation.DataHandler import  mergeMonths, DemaMinDayMultinom
+    import pandas as pd
+    from torch.utils.data import ConcatDataset
+    #data = mergePeriod(1,4,beg="DAT_ASCII_EURUSD_M1_2021",dir="./eurusd2021/",dump=False)
+    data2021 = mergeMonths(start=1, end=9,beg="DAT_ASCII_EURUSD_M1_2021",dir = './Data/eurusd2021/', dump=False)
+
+    dir = "./Data/"
+    beg = "DAT_ASCII_EURUSD_M1_"
+
+    years = range(2010,2021)
+    dataY = []
+    for y in years:
+        dataY.append(pd.read_csv(dir+beg+str(y)+'.csv',sep=';',names = ['Open','High','Low','Close','Volume']))
+    dataY.append(data2021)
+    data = pd.concat(dataY)
+    data.index.name = "Date"
+    data.index = pd.to_datetime(data.index)
+    if to_pickle:
+        import pickle
+        with open('OHLC.pkl','wb') as f:
+            pickle.dump(data,f,protocol=pickle.HIGHEST_PROTOCOL)
+    return data
+
 def mergeMonths(start, end, beg = "DAT_ASCII_EURUSD_M1_2021", dir = "./",dump = False):
     s = pd.concat(
         [pd.read_csv(dir+beg+'{:02d}.csv'.format(x),sep=';',names = ['Open','High','Low','Close','Volume']) 

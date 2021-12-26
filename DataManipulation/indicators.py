@@ -2,6 +2,18 @@ import pandas as pd
 import numpy as np
 import numba
 from talib import DEMA
+
+def MaxMinRollNorm(TS,period):
+    if isinstance(TS,pd.Series):
+        normed = np.zeros(len(TS))
+        normed[0] = np.nan
+        #  X' = (X - min_X(p-1,-1))/ (max_X(p-1,-1)-min_X(p-1,-1)) 
+        tsmin = TS.rolling(period).min()
+        tsmax = TS.rolling(period).max()
+        normed[1:] = (X[1:]-tsmin[:-1])/(tsmax[:-1]/tsmax[:-1])
+        return normed
+    else:
+        raise Exception("not supporting other types yet, e.g. np.array")
 # Numerical 1st Derivative
 def D1(TS):
     if isinstance(TS,pd.Series):
