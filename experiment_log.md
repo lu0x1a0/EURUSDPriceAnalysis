@@ -26,3 +26,15 @@
             D1dema_p  : std(D1ema, year/2)
             D1ema_p   : std(D1ema, year/2)
             std(D1ema, p = 9,100,6000) : min max(std(D1ema), year)
+
+    * prediction of indicator:
+        std of dema9
+            loss: use reverse kl,
+            features:
+                past std of dema9 normalized by 1 year min max
+                past std of ema100 normalized by 1 year min max
+                past D1dema9 normalized by 1 year min max
+                past D1ema100 normalized by 1 year min max
+            model: to start, use 1D convolution -> 2D convolution -> FC -> 1D probability output
+        D1dema9
+            output:  2x1 output, one for each direction and each out = magnitude.
