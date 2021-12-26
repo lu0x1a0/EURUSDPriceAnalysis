@@ -8,10 +8,11 @@ def MaxMinRollNorm(TS,period):
         normed = np.zeros(len(TS))
         normed[0] = np.nan
         #  X' = (X - min_X(p-1,-1))/ (max_X(p-1,-1)-min_X(p-1,-1)) 
-        tsmin = TS.rolling(period).min()
-        tsmax = TS.rolling(period).max()
-        normed[1:] = (X[1:]-tsmin[:-1])/(tsmax[:-1]/tsmax[:-1])
-        return normed
+        TSn = TS.to_numpy()
+        tsmin = TS.rolling(period).min().to_numpy()
+        tsmax = TS.rolling(period).max().to_numpy()
+        normed[1:] = (TSn[1:]-tsmin[:-1])/(tsmax[:-1]-tsmin[:-1])
+        return pd.Series(normed,index =TS.index)
     else:
         raise Exception("not supporting other types yet, e.g. np.array")
 # Numerical 1st Derivative
