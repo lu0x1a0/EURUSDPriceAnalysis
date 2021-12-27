@@ -7,6 +7,10 @@ Run newqt.py, in MainWindow class change between Test1plot (minutes) and Test2pl
 ![Screenshot](./Images/qtHourly.png)
 
 # Predictions: 1 step Predition of test data for Dema_9-rolling_Standard Deviation_100 on Hourly data
+
+details inside nnstruct.ipynb
+
+
 ![MSE Loss](./Images/MSELoss.png)
 ![BCE Loss](./Images/BCELoss.png)
 
