@@ -1,3 +1,5 @@
+# [Home](http://lu0x1a0.github.io)
+
 # How to visualize:
 Data used in this repository are obtained [here](http://www.histdata.com/download-free-forex-data/?/ascii/1-minute-bar-quotes)
 
