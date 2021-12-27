@@ -42,7 +42,7 @@ class STDConvModel(nn.Module):
             nn.Linear(self.conv2d_out_channel*1*l2_out,int(l2_out/2)),
             nn.Sigmoid(),
             nn.Linear(int(l2_out/2),1),
-            nn.Tanh()
+            nn.Sigmoid()
         )
     def forward(self,x):
         #out1 = nn.ReLU()(self.conv1d(x))
