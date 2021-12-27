@@ -49,7 +49,7 @@ class STDConvModel(nn.Module):
         out1 = self.bn1d(nn.ReLU()(self.conv1d(x)))
         out2 = self.conv1_2_reshape(out1)
         #out3 = nn.ReLU()(self.conv2d(out2))
-        out3 = self.bn2d((nn.ReLU()(self.conv2d(out2)))
+        out3 = self.bn2d(nn.ReLU()(self.conv2d(out2)))
         out4 = self.fc(out3)
         return out4
 from torchinfo import summary
