@@ -24,7 +24,7 @@ class STDConvModel(nn.Module):
             stride = stride1 
         )
         # output = (batch,out_channel, int(1+(window_size-rolling_size)/stride) )
-
+        self.bn1d = nn.BatchNorm1d(self.num_features+1)
         self.conv1_2_reshape = lambda x: torch.unsqueeze(x,1)
         self.conv2d_out_channel = 2
         self.conv2d = nn.Conv2d(
@@ -33,7 +33,7 @@ class STDConvModel(nn.Module):
             kernel_size = (num_features+1,rolling_size),
             stride = stride2
         )
-        
+        self.bn2d = nn.BatchNorm2d(self.conv2d_out_channel)
         l1_out = int((input_length-rolling_size)/stride1+1)
         l2_out = int((l1_out-rolling_size)/stride2+1)
         # output
@@ -46,10 +46,10 @@ class STDConvModel(nn.Module):
         )
     def forward(self,x):
         #out1 = nn.ReLU()(self.conv1d(x))
-        out1 = nn.BatchNorm1d(self.num_features+1)(nn.ReLU()(self.conv1d(x)))
+        out1 = self.bn1d(nn.ReLU()(self.conv1d(x)))
         out2 = self.conv1_2_reshape(out1)
         #out3 = nn.ReLU()(self.conv2d(out2))
-        out3 = nn.BatchNorm2d(self.conv2d_out_channel)(nn.ReLU()(self.conv2d(out2)))
+        out3 = self.bn2d((nn.ReLU()(self.conv2d(out2)))
         out4 = self.fc(out3)
         return out4
 from torchinfo import summary
