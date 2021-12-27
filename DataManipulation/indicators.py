@@ -3,6 +3,19 @@ import numpy as np
 import numba
 from talib import DEMA
 
+def STDNorm(TS,period):
+    pass
+def RollTStat(TS,period):
+    if isinstance(TS,pd.Series):
+        normed = np.zeros(len(TS))
+        normed[0] = np.nan
+        #  X' = X/X.std(-n-1~-1)
+        TSn = TS.to_numpy()
+        std = TS.rolling(period).std().to_numpy()
+        normed[1:] = (TSn[1:]/std[:-1])
+        return pd.Series(normed,index =TS.index)
+    else:
+        raise Exception("not supporting other types yet, e.g. np.array")
 def MaxMinRollNorm(TS,period):
     if isinstance(TS,pd.Series):
         normed = np.zeros(len(TS))

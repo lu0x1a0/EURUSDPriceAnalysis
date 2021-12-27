@@ -13,6 +13,48 @@ import time
 #from scipy.stats import norm
 #import math
 #import os
+class RollingWindowConv(nn.Module):
+    def __init__(self,input_length,num_features,num_output,rolling_size,last_activation,stride1=1,stride2=1):
+        super(STDConvModel, self).__init__()
+        self.num_features = num_features
+        self.conv1d = nn.Conv1d(
+            in_channels = num_features, 
+            out_channels = num_features+1, 
+            kernel_size = rolling_size,
+            stride = stride1 
+        )
+        # output = (batch,out_channel, int(1+(window_size-rolling_size)/stride) )
+        self.bn1d = nn.BatchNorm1d(self.num_features+1)
+        self.conv1_2_reshape = lambda x: torch.unsqueeze(x,1)
+        self.conv2d_out_channel = 2
+        self.conv2d = nn.Conv2d(
+            1,
+            self.conv2d_out_channel,
+            kernel_size = (num_features+1,rolling_size),
+            stride = stride2
+        )
+        self.bn2d = nn.BatchNorm2d(self.conv2d_out_channel)
+        l1_out = int((input_length-rolling_size)/stride1+1)
+        l2_out = int((l1_out-rolling_size)/stride2+1)
+        # output
+        self.fc = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(self.conv2d_out_channel*1*l2_out,int(l2_out/2)),
+            nn.Sigmoid(),
+            nn.Linear(int(l2_out/2),num_output),
+        )
+        self.lastAct = last_activation
+
+    def forward(self,x):
+        #out1 = nn.ReLU()(self.conv1d(x))
+        out1 = self.bn1d(nn.ReLU()(self.conv1d(x)))
+        out2 = self.conv1_2_reshape(out1)
+        #out3 = nn.ReLU()(self.conv2d(out2))
+        out3 = self.bn2d(nn.ReLU()(self.conv2d(out2)))
+        out4 = self.fc(out3)
+        return self.lastAct(out4)
+
+
 class STDConvModel(nn.Module):
     def __init__(self,input_length,num_features,rolling_size,stride1=1,stride2=1):
         super(STDConvModel, self).__init__()
@@ -52,11 +94,7 @@ class STDConvModel(nn.Module):
         out3 = self.bn2d(nn.ReLU()(self.conv2d(out2)))
         out4 = self.fc(out3)
         return out4
-from torchinfo import summary
-m1 = STDConvModel(5*24, 2, 12,stride1=2,stride2=2)
-print(m1(torch.zeros((20,2,5*24))))
-class STDLSTM(nn.Module):
-    pass
+
 class FC(nn.Module):
     def __init__(self,layer_shapes,activation = nn.Sigmoid, out_act = nn.Sigmoid):
         super().__init__()
