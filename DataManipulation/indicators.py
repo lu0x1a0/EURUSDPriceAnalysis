@@ -16,11 +16,22 @@ def RollTStat(TS,period):
         return pd.Series(normed,index =TS.index)
     else:
         raise Exception("not supporting other types yet, e.g. np.array")
+
+def MaxMinRollScaled(TS,period):
+    if isinstance(TS,pd.Series):
+        scaled = np.zeros(len(TS))
+        scaled[0] = np.nan
+        #  X' = (X)/ (max_X(-p,0)-min_X(-p,0)) 
+        TSn = TS.to_numpy()
+        tsmin = TS.rolling(period).min().to_numpy()
+        tsmax = TS.rolling(period).max().to_numpy()
+        scaled = (TSn[:])/(tsmax[:]-tsmin[:])
+        return pd.Series(scaled,index =TS.index)
 def MaxMinRollNorm(TS,period):
     if isinstance(TS,pd.Series):
         normed = np.zeros(len(TS))
         normed[0] = np.nan
-        #  X' = (X - min_X(p-1,-1))/ (max_X(p-1,-1)-min_X(p-1,-1)) 
+        #  X' = (X - min_X(-p-1,-1))/ (max_X(-p-1,-1)-min_X(-p-1,-1)) 
         TSn = TS.to_numpy()
         tsmin = TS.rolling(period).min().to_numpy()
         tsmax = TS.rolling(period).max().to_numpy()
