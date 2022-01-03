@@ -1,4 +1,17 @@
 # [Home](http://lu0x1a0.github.io)
+# Requirements
+install conda environment from the environment.yml file via
+```
+conda env create -f environment.yml
+```
+or
+```
+conda env create -f environment.yml -p /home/user/anaconda3/envs/env_name
+```
+environment.yml is created via
+```
+conda env export | grep -v "^prefix: " > environment.yml
+```
 
 # How to visualize:
 Data used in this repository are obtained [here](http://www.histdata.com/download-free-forex-data/?/ascii/1-minute-bar-quotes)
