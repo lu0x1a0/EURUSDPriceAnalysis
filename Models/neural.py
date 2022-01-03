@@ -15,7 +15,7 @@ import time
 #import os
 class RollingWindowConv(nn.Module):
     def __init__(self,input_length,num_features,num_output,rolling_size,last_activation,stride1=1,stride2=1):
-        super(STDConvModel, self).__init__()
+        super(RollingWindowConv, self).__init__()
         self.num_features = num_features
         self.conv1d = nn.Conv1d(
             in_channels = num_features, 
