@@ -7,7 +7,8 @@ from trading_ig import IGService, IGStreamService
 #from trading_ig.config import config
 from trading_ig.lightstreamer import Subscription
 
-
+import pandas as pd
+temporary_storage = pd.DataFrame()
 # A simple function acting as a Subscription listener
 def on_prices_update(item_update):
     # print("price: %s " % item_update)
@@ -37,11 +38,15 @@ def main():
 
     # Making a new Subscription in MERGE mode
     subscription_prices = Subscription(
-        mode="MERGE",
-        items = ["L1:CS.D.EURUSD.CFD.IP"],
+        mode = "MERGE",
+        #mode="DISTINCT",
+        #items = ["CHART:CS.D.EURUSD.CFD.IP:TICK"],
+        items = ["MARKET:CS.D.EURUSD.CFD.IP"],
+        
         #items=["L1:CS.D.GBPUSD.CFD.IP", "L1:CS.D.USDJPY.CFD.IP"], # sample CFD epics
         #items=["L1:CS.D.GBPUSD.TODAY.IP", "L1:IX.D.FTSE.DAILY.IP"], # sample spreadbet epics
         fields=["UPDATE_TIME", "BID", "OFFER", "CHANGE", "MARKET_STATE"],
+        #fields = ['LTV']
     )
 
     # Adding the "on_price_update" function to Subscription
