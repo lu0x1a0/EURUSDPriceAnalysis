@@ -119,8 +119,9 @@ def D1Crossing(TS1,TS2, TS1D1=None,TS2D1=None,n = 5):
 
 @numba.jit(nopython = True)
 def NUMBAEMA(series,period):
-    myema = np.empty(len(series),dtype="float64")
-    myema[:] = np.nan
+    myema = np.zeros(len(series))#np.empty(len(series),dtype="float64")
+    #myema[:] = np.nan
+    myema.fill(np.nan)
     smoothing = 2
     nan_idx = np.where(np.isnan(series))[0]
     lastnan_idx = -1
