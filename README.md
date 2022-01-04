@@ -1,4 +1,9 @@
 # [Home](http://lu0x1a0.github.io)
+
+## Current Task:
+* Display Live Streaming Data from IG and aggregate to historical data
+* make qtplot accept jupyter data
+
 # Requirements
 install conda environment from the environment.yml file via
 ```
