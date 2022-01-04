@@ -56,7 +56,8 @@ def on_prices_update(item_update):
             #print(minute_storage)
             temporary_storage = pd.DataFrame(columns=['time','bid','ask','mid'])
             if vals['MARKET_STATE'] != 'TRADEABLE':
-                minute_storage.to_csv("EURUSD_MINUTES_"+str(minute_storage.iloc[0]['time'])+".csv")
+                ...
+            minute_storage.to_csv("EURUSD_MINUTES_"+str(minute_storage.iloc[0]['time'])+".csv")
     temporary_storage = temporary_storage.append(
         {'time':updatetime,
         'bid':float(vals['BID']),
