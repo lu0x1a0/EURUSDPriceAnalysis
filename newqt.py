@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayout,
 
 from QTVisual.PlotsHolder import PGFigureLayoutWrap
 from QTVisual.Plot import PlotPanel
-from utils import plotloader
+#from utils import plotloader
 
 def getOHLC_pickle(pklpath):
         import pickle
@@ -38,7 +38,7 @@ def getOHLC_raw(to_pickle=False):
 
 class MainWindow(QMainWindow):
 
-    def __init__(self, picklepath = None):
+    def __init__(self, picklepath = None, dfs = None):
         super(MainWindow, self).__init__()
 
         self.setWindowTitle("My App")
@@ -48,10 +48,14 @@ class MainWindow(QMainWindow):
         
         if picklepath is None:
             self.plotpanels,self.data = Test2Plots()
-        else:
+        elif dfs is None:
             self.dfs = getOHLC_pickle(picklepath)
             self.data = self.dfs[0]
-            self.plotpanels = plotloader(self.dfs)
+            self.plotpanels = [PlotPanel(df) for df in self.dfs]
+        else:
+            self.dfs = dfs
+            self.data = self.dfs[0]
+            self.plotpanels = [PlotPanel(df) for df in self.dfs]
         #print(self.data.tail(100))
         self.rightmain = PGFigureLayoutWrap(self.plotpanels, len(self.data))
         self.layout.addLayout(self.leftbar)

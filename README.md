@@ -4,6 +4,18 @@
 * Display Live Streaming Data from IG and aggregate to historical data
 * make qtplot accept jupyter data
 
+## Current Bug:
+streaming data saved some very weird residual? 
+i.e. 
+```
+,time,Open,High,Low,Close
+0,2022-01-04 10:56:00,1.1296300000000001,1.12964,1.12952,1.1295250000000001
+1,2022-01-04 10:57:00,1.1295350000000002,1.12962,1.12947,1.12948
+2,2022-01-04 10:58:00,1.12949,1.12962,1.12946,1.12948
+3,2022-01-04 10:59:00,1.12949,1.1295549999999999,1.1294650000000002,1.1294650000000002
+4,2022-01-04 11:00:00,1.129475,1.129505,1.129235,1.1292900000000001
+```
+
 # Requirements
 install conda environment from the environment.yml file via
 ```
@@ -26,13 +38,15 @@ Run newqt.py, in MainWindow class change between Test1plot (minutes) and Test2pl
 
 # Predictions: 1 step Predition of test data for Dema_9-rolling_Standard Deviation_100 on Hourly data
 
-details inside nnstruct.ipynb
+details inside 1stepprediction.ipynb
 
 
 ![MSE Loss](./Images/MSELoss.png)
 ![BCE Loss](./Images/BCELoss.png)
 
 # Preliminary 4 step prediction on scaled D1EMA100 on Hourly Data, 300 epochs
+details inside d1multistep notebook
+
 D1 means price[hour = i]-price[hour = (i-1)]
 
 ![4 step](./Images/nsteppredict.png)
