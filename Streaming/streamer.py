@@ -26,17 +26,19 @@ def on_prices_update_OLD(item_update):
 def on_prices_update(item_update):
     global temporary_storage
     global minute_storage
-    # print("price: %s " % item_update)
-    #print(
-    #    "{stock_name:<19}: Time {UPDATE_TIME:<8} - "
-    #    "Bid {BID:>5} - Ask {OFFER:>5} - CHANGE {CHANGE:>5} - STATE {MARKET_STATE} -"
-    #    "MARKET_DELAY {MARKET_DELAY}".format(
-    #        stock_name=item_update["name"], **item_update["values"]
-    #    )
-    #)
-    #print(item_update)
+
     vals = item_update['values']
-    updatetime = datetime.datetime.strptime(vals['UPDATE_TIME'],"%H:%M:%S")
+    #print(vals['MARKET_STATE'],vals['MARKET_STATE']=='TRADEABLE')
+    now = datetime.datetime.now()
+    rawupdatetime = datetime.datetime.strptime(vals['UPDATE_TIME'],"%H:%M:%S")
+    amendupdatetime = rawupdatetime.replace(year = now.year, month= now.month, day = now.day)
+    if amendupdatetime > now:
+        updatetime = amendupdatetime - datetime.timedelta(
+            days = 1
+        )
+    else:
+        updatetime = amendupdatetime
+    
     
     timewithoutSeconds = updatetime.replace(second=0, microsecond=0)
     if len(temporary_storage)>1:
@@ -51,14 +53,17 @@ def on_prices_update(item_update):
                 'Low':temporary_storage['mid'].min(),
                 'Close':temporary_storage.iloc[-1]['mid']
             },ignore_index = True)
-            print(minute_storage)
+            #print(minute_storage)
             temporary_storage = pd.DataFrame(columns=['time','bid','ask','mid'])
+            if vals['MARKET_STATE'] != 'TRADEABLE':
+                minute_storage.to_csv("EURUSD_MINUTES_"+str(minute_storage.iloc[0]['time'])+".csv")
     temporary_storage = temporary_storage.append(
         {'time':updatetime,
         'bid':float(vals['BID']),
         'ask':float(vals['OFFER']),
         'mid':(float(vals['BID'])+float(vals['OFFER']))/2
     }, ignore_index =  True)
+    #minute_storage.to_csv("garbagetest.csv")
 def on_account_update(balance_update):
     print("balance: %s " % balance_update)
 
