@@ -53,7 +53,7 @@ def on_prices_update(item_update):
                 'Low':temporary_storage['mid'].min(),
                 'Close':temporary_storage.iloc[-1]['mid']
             },ignore_index = True)
-            print(minute_storage)
+            #print(minute_storage)
             temporary_storage = pd.DataFrame(columns=['time','bid','ask','mid'])
             if vals['MARKET_STATE'] != 'TRADEABLE':
                 minute_storage.to_csv("EURUSD_MINUTES_"+str(minute_storage.iloc[0]['time'])+".csv")
@@ -63,7 +63,7 @@ def on_prices_update(item_update):
         'ask':float(vals['OFFER']),
         'mid':(float(vals['BID'])+float(vals['OFFER']))/2
     }, ignore_index =  True)
-    minute_storage.to_csv("garbagetest.csv")
+    #minute_storage.to_csv("garbagetest.csv")
 def on_account_update(balance_update):
     print("balance: %s " % balance_update)
 
