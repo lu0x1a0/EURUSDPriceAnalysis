@@ -19,7 +19,7 @@ class PlotPanel(pg.PlotWidget):
     # fix axes decimals https://stackoverflow.com/questions/59768880/how-to-format-y-axis-displayed-numbers-in-pyqtgraph
     def __init__(self,df:Type[pd.DataFrame],colors = None, types = None):
         super().__init__()
-        self.palette = ('b', 'g', 'r', 'c', 'm', 'y')#, 'k', 'w')
+        self.palette = ('b', 'g', 'r', 'c', 'm', 'y','w')#, 'k', 'w')
         self.colors = {series_name:self.palette[i%len(self.palette)] for i,series_name in enumerate(df)} if colors is None else colors
         self.df = df
         self.indicators = {} # Dict{plot}

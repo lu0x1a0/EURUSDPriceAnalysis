@@ -46,16 +46,17 @@ class MainWindow(QMainWindow):
         
         self.leftbar = QVBoxLayout()
         
-        if picklepath is None:
-            self.plotpanels,self.data = Test2Plots()
-        elif dfs is None:
+        if dfs is not None:
+            self.dfs = dfs
+            self.data = self.dfs[0]
+            self.plotpanels = [PlotPanel(df) for df in self.dfs]
+        elif picklepath is not None:
             self.dfs = getOHLC_pickle(picklepath)
             self.data = self.dfs[0]
             self.plotpanels = [PlotPanel(df) for df in self.dfs]
         else:
-            self.dfs = dfs
-            self.data = self.dfs[0]
-            self.plotpanels = [PlotPanel(df) for df in self.dfs]
+            self.plotpanels,self.data = Test2Plots()
+
         #print(self.data.tail(100))
         self.rightmain = PGFigureLayoutWrap(self.plotpanels, len(self.data))
         self.layout.addLayout(self.leftbar)
@@ -157,9 +158,10 @@ def Test2Plots():
     return plotpanels,data
 
 
-app = QApplication(sys.argv)
 
-window = MainWindow()
-window.show()
 
-app.exec()    
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    app.exec()    
